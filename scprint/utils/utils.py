@@ -139,7 +139,6 @@ def load_genes(organisms: Union[str, list] = "NCBITaxon:9606"):  # "NCBITaxon:10
         genesdf = bt.Gene.filter(
             organism_id=bt.Organism.filter(ontology_id=organism).first().id
         ).df()
-        genesdf = genesdf[~genesdf["public_source_id"].isna()]
         genesdf = genesdf.drop_duplicates(subset="ensembl_gene_id")
         genesdf = genesdf.set_index("ensembl_gene_id").sort_index()
         # mitochondrial genes
@@ -151,10 +150,12 @@ def load_genes(organisms: Union[str, list] = "NCBITaxon:9606"):  # "NCBITaxon:10
         genesdf["organism"] = organism
         organismdf.append(genesdf)
     organismdf = pd.concat(organismdf)
-    organismdf.drop(
-        columns=["source_id", "stable_id", "run_id", "created_by_id", "updated_at"],
-        inplace=True,
-    )
+    for col in ["source_id", "stable_id", "run_id", "created_by_id", "updated_at"]:
+        if col in organismdf.columns:
+            organismdf.drop(
+                columns=[col],
+                inplace=True,
+            )
     return organismdf
 
 

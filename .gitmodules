@@ -1,3 +1,9 @@
 [submodule "RNABERT"]
 path = scprint/tokenizers/RNABERT
 url = https://github.com/jkobject/RNABERT
+[submodule "tools/DeepSEM"]
+path = tools/DeepSEM
+url = https://github.com/jkobject/DeepSEM
+[submodule "tools/SERGIO"]
+path = tools/SERGIO
+url = https://github.com/jkobject/SERGIO

@@ -19,7 +19,6 @@ from bengrn import BenGRN, get_perturb_gt, get_sroy_gt
 from bengrn.base import train_classifier
 from grnndata import GRNAnnData, from_anndata, read_h5ad
 from grnndata import utils as grnutils
-from lightning.pytorch import Trainer
 from matplotlib import pyplot as plt
 from scdataloader import Collator, Preprocessor
 from scdataloader.data import SimpleAnnDataset
@@ -58,7 +57,6 @@ class GNInfer:
         genes: List[str] = [],
         loc: str = "./",
         dtype: torch.dtype = torch.float16,
-        devices: List[int] = [0],
         locname: str = "",
     ):
         """
@@ -86,7 +84,6 @@ class GNInfer:
             genes (list, optional): List of genes to consider. Defaults to an empty list.
             loc (str, optional): Location to save results. Defaults to "./".
             dtype (torch.dtype, optional): Data type for computations. Defaults to torch.float16.
-            devices (List[int], optional): List of device IDs to use. Defaults to [0].
             locname (str, optional): Name for the location. Defaults to an empty string.
 
         """
@@ -95,12 +92,15 @@ class GNInfer:
         self.layer = layer
         self.locname = locname
         self.how = how
-        assert self.how in [
-            "most var within",
-            "most var across",
-            "random expr",
-            "given",
-        ], "how must be one of 'most var within', 'most var across', 'random expr', 'given'"
+        assert (
+            self.how
+            in [
+                "most var within",
+                "most var across",
+                "random expr",
+                "given",
+            ]
+        ), "how must be one of 'most var within', 'most var across', 'random expr', 'given'"
         self.num_genes = num_genes
         self.preprocess = preprocess
         self.cell_type_col = cell_type_col

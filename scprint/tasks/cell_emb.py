@@ -43,7 +43,6 @@ class Embedder:
         plot_corr_size: int = 64,
         doplot: bool = True,
         keep_all_cls_pred: bool = False,
-        devices: List[int] = [0],
         dtype: torch.dtype = torch.float16,
         output_expression: str = "none",
     ):
@@ -61,7 +60,6 @@ class Embedder:
             doclass (bool, optional): Whether to perform classification. Defaults to True.
             doplot (bool, optional): Whether to generate plots. Defaults to True.
             keep_all_cls_pred (bool, optional): Whether to keep all class predictions. Defaults to False.
-            devices (List[int], optional): List of device IDs to use. Defaults to [0].
             dtype (torch.dtype, optional): Data type for computations. Defaults to torch.float16.
             output_expression (str, optional): The method to output expression data. Options are "none", "all", "sample". Defaults to "none".
         """
@@ -75,10 +73,9 @@ class Embedder:
         self.plot_corr_size = plot_corr_size
         self.precision = precision
         self.doplot = doplot
+        self.dtype = dtype
         self.doclass = doclass
-        self.trainer = Trainer(precision=precision, devices=devices)
         self.output_expression = output_expression
-        # subset_hvg=1000, use_layer='counts', is_symbol=True,force_preprocess=True, skip_validate=True)
 
     def __call__(self, model: torch.nn.Module, adata: AnnData, cache=False):
         """
@@ -154,7 +151,7 @@ class Embedder:
             model.doplot = self.doplot
             with (
                 torch.no_grad(),
-                torch.autocast(device_type=device, dtype=torch.float16),
+                torch.autocast(device_type=device, dtype=self.dtype),
             ):
                 for batch in tqdm(dataloader):
                     gene_pos, expression, depth = (
@@ -303,89 +300,7 @@ class Embedder:
                     print("     accuracy:", sum(res) / len(res))
                     print(" ")
                 metrics.update({cl + "_accuracy": sum(res) / len(res)})
-        # m = self.compute_reconstruction(adata, plot_corr_size=self.plot_corr_size)
-        # metrics.update(m)
         return adata, metrics
-
-    def compute_reconstruction(self, model, adata, plot_corr_size=64):
-        if plot_corr_size < 1:
-            raise ValueError("plot_corr_size should be greater than 0")
-        sc.pp.highly_variable_genes(adata, flavor="seurat_v3", n_top_genes=self.max_len)
-        highly_variable = adata.var.index[adata.var.highly_variable]
-        random_indices = np.random.randint(
-            low=0, high=adata.shape[0], size=plot_corr_size
-        )
-        adataset = SimpleAnnDataset(
-            adata[random_indices], obs_to_output=["organism_ontology_term_id"]
-        )
-        col = Collator(
-            organisms=model.organisms,
-            valid_genes=model.genes,
-            how="some",
-            genelist=highly_variable,
-        )
-        dataloader = DataLoader(
-            adataset,
-            collate_fn=col,
-            batch_size=plot_corr_size,
-            num_workers=self.num_workers,
-            shuffle=False,
-        )
-        model.pred_log_adata = False
-        model.predict_mode = "generate"
-
-        # self.trainer.num_predict_batches = 1
-
-        self.trainer.predict(model, dataloader)
-
-        res = model.expr_pred
-        # pos = adata.obsm["scprint_pos"][random_indices]
-        if len(res) > 1:
-            out = (
-                utils.zinb_sample(
-                    res[0],
-                    res[1],
-                    res[2],
-                )
-                .cpu()
-                .numpy()
-            )
-            try:
-                mean_expr = pd.read_parquet("../../data/avg_expr.parquet")
-                genes_used = [model.genes[int(i)] for i in model.pos[0]]
-                mean_expr = mean_expr[mean_expr.index.isin(genes_used)][
-                    ["avg_expr", "avg_expr_wexpr"]
-                ].values
-                out = np.hstack([out.T, mean_expr])
-                add = 2
-            except:
-                print(
-                    "cannot read the mean expr file under scprint/data/avg_expr.parquet"
-                )
-                out = out.T
-                mean_expr = None
-                add = 0
-
-            to = adata[
-                random_indices,
-                adata.var.index.isin(set(highly_variable) & set(model.genes)),
-            ].X.todense()
-            metrics = compute_corr(
-                out,
-                to,
-                doplot=self.doplot,
-                compute_mean_regress=add == 2,
-                plot_corr_size=plot_corr_size,
-            )
-        expr = res[0].cpu().numpy()
-        # expr[
-        #    np.random.binomial(
-        #        1,
-        #        p=torch.nn.functional.sigmoid(res[2].to(torch.float32)).cpu().numpy(),
-        #    ).astype(bool)
-        # ] = 0
-        compute_corr(expr.T, to, doplot=self.doplot, plot_corr_size=plot_corr_size)
-        return metrics
 
 
 def compute_corr(
