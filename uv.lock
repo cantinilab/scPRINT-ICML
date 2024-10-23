@@ -326,26 +326,30 @@ wheels = [
 
 [[package]]
 name = "bengrn"
-version = "1.1.0"
+version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anndata" },
     { name = "arboreto" },
+    { name = "bionty" },
     { name = "ctxcore" },
     { name = "dask-expr" },
     { name = "decoupler" },
+    { name = "gdown" },
     { name = "grnndata" },
+    { name = "gseapy" },
     { name = "numpy" },
     { name = "omnipath" },
     { name = "pandas" },
     { name = "pyscenic" },
+    { name = "rich" },
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "seaborn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/01/b52eac563daf36b587227aed482df7b5c8abe122a9a5d39428cb62dab7f3/bengrn-1.1.0.tar.gz", hash = "sha256:c786e59dbf66738acd4cf6cd09c4dda199572408a450c2b9ab32279c378c04e8", size = 52506 }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/9a/3ba0564b641b7aa8fca628542078569a0d220d680430bdc6c386e3eb98a9/bengrn-1.2.2.tar.gz", hash = "sha256:ab7d76df8030c7c3e207978d325c0f3bfd49d3faa137d5286057a4849366c095", size = 23574964 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/cf/84fe92ae47c9b6146b33960aacffbba5700cff8ca553b51a0730b0227595/bengrn-1.1.0-py3-none-any.whl", hash = "sha256:5e053292ffdb526a565fc1314c86cf7db6e0def6132977d2bee71676dbbda380", size = 56917 },
+    { url = "https://files.pythonhosted.org/packages/1c/f0/0a34132f28d910ae29f7499e9c7e465e03110056216fa1838c8eab132c3a/bengrn-1.2.2-py3-none-any.whl", hash = "sha256:5c03b3e85b701c2bb042ad06ee60619df14ef420f6c848f3ebd50671f3359b2e", size = 29058 },
 ]
 
 [[package]]
@@ -490,6 +494,25 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9a/7a/1c9a1b478c4cdafae166572d5dc2aff93cd34c04fdfbfb0772cf1fccfcfa/botocore-1.35.23.tar.gz", hash = "sha256:25b17a9ccba6ad32bb5bf7ba4f52656aa03c1cb29f6b4e438050ee4ad1967a3b", size = 12775312 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f8/81/90e1b82697d849e4a5e7e6dcf21ef7ba9fa902b98324849bd2956e6efac3/botocore-1.35.23-py3-none-any.whl", hash = "sha256:cab9ec4e0367b9f33f0bc02c5a29f587b0119ecffd6d125bacee085dcbc8817d", size = 12565311 },
+]
+
+[[package]]
+name = "celltypist"
+version = "1.6.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "leidenalg" },
+    { name = "numpy" },
+    { name = "openpyxl" },
+    { name = "pandas" },
+    { name = "requests" },
+    { name = "scanpy" },
+    { name = "scikit-learn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e6/50/ad61b1af2c7199a0e7588cc63e437a1e1080a6ef50631d11e6436e41eaab/celltypist-1.6.3.tar.gz", hash = "sha256:7f3657a78e5eba2ee839e2ba94ae0d4c14599990c0c9a3d205ae2be9206ea976", size = 7814852 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/3a/98625ae40c1c839354d6bee4e389f23ecb9be94a42573f58f4ea4255e81c/celltypist-1.6.3-py3-none-any.whl", hash = "sha256:0e2dc4b84ed89eb71f4af5f0db484216b3764439a6f16337c06a698a83979e74", size = 7330725 },
 ]
 
 [[package]]
@@ -1184,6 +1207,15 @@ wheels = [
 ]
 
 [[package]]
+name = "et-xmlfile"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3d/5d/0413a31d184a20c763ad741cc7852a659bf15094c24840c5bdd1754765cd/et_xmlfile-1.1.0.tar.gz", hash = "sha256:8eb9e2bc2f8c97e37a2dc85a09ecdcdec9d8a396530a6d5a33b30b9a92da0c5c", size = 3218 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/c2/3dd434b0108730014f1b96fd286040dc3bcb70066346f7e01ec2ac95865f/et_xmlfile-1.1.0-py3-none-any.whl", hash = "sha256:a2ba85d1d6a74ef63837eed693bcb89c3f752169b0e3e7ae5b16ca5e1b3deada", size = 4688 },
+]
+
+[[package]]
 name = "exceptiongroup"
 version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1383,6 +1415,21 @@ http = [
 ]
 
 [[package]]
+name = "gdown"
+version = "5.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "filelock" },
+    { name = "requests", extra = ["socks"] },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/09/6a/37e6b70c5bda3161e40265861e63b64a86bfc6ca6a8f1c35328a675c84fd/gdown-5.2.0.tar.gz", hash = "sha256:2145165062d85520a3cd98b356c9ed522c5e7984d408535409fd46f94defc787", size = 284647 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/54/70/e07c381e6488a77094f04c85c9caf1c8008cdc30778f7019bc52e5285ef0/gdown-5.2.0-py3-none-any.whl", hash = "sha256:33083832d82b1101bdd0e9df3edd0fbc0e1c5f14c9d8c38d2a35bf1683b526d6", size = 18235 },
+]
+
+[[package]]
 name = "gget"
 version = "0.29.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1496,7 +1543,7 @@ wheels = [
 
 [[package]]
 name = "grnndata"
-version = "1.1.2"
+version = "1.1.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anndata" },
@@ -1506,6 +1553,7 @@ dependencies = [
     { name = "louvain" },
     { name = "natsort" },
     { name = "networkx" },
+    { name = "numba" },
     { name = "numpy" },
     { name = "powerlaw" },
     { name = "pyvis" },
@@ -1513,9 +1561,9 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "scipy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/f6/4896892511397ca89a81fc2b984b536382a5a80c1488b468b686db97d853/grnndata-1.1.2.tar.gz", hash = "sha256:bcbd8ab78aedffadf1c89bdf01f2231fc765062d643cb890f36666d4c86ef589", size = 61960 }
+sdist = { url = "https://files.pythonhosted.org/packages/af/fb/fee1415db196deba8032f6305715f1543e3a811826d0a7be0d2f06985bb6/grnndata-1.1.4.tar.gz", hash = "sha256:2ec27bd09922d245fd86521212c6dccf03ca685a81eb3b93bb93333a28fe7354", size = 13081438 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/c6/7ce8c3eaebeeb681d74c3959247b8e4f85d957aadc9923f63e6d95cff830/grnndata-1.1.2-py3-none-any.whl", hash = "sha256:ddfcf17c22e999af0df2f6de15466fa5b903a6189709f3872cad30134266eb6c", size = 60665 },
+    { url = "https://files.pythonhosted.org/packages/b6/5d/8aeffa51a77b1ffd1a0afe7ee2ca60d7fed583798fa2bd31f6bcef29e1ec/grnndata-1.1.4-py3-none-any.whl", hash = "sha256:5df8f4c031cbfc170657d9c7ac9a4e1d1db4758eaa4fa98e5c4888d4d42d4a64", size = 48686 },
 ]
 
 [[package]]
@@ -3335,6 +3383,18 @@ wheels = [
 ]
 
 [[package]]
+name = "openpyxl"
+version = "3.1.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "et-xmlfile" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3d/f9/88d94a75de065ea32619465d2f77b29a0469500e99012523b91cc4141cd1/openpyxl-3.1.5.tar.gz", hash = "sha256:cf0e3cf56142039133628b5acffe8ef0c12bc902d2aadd3e0fe5878dc08d1050", size = 186464 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl", hash = "sha256:5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2", size = 250910 },
+]
+
+[[package]]
 name = "opt-einsum"
 version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3965,6 +4025,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pysocks"
+version = "1.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/11/293dd436aea955d45fc4e8a35b6ae7270f5b8e00b53cf6c024c83b657a11/PySocks-1.7.1.tar.gz", hash = "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0", size = 284429 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/59/b4572118e098ac8e46e399a1dd0f2d85403ce8bbaad9ec79373ed6badaf9/PySocks-1.7.1-py3-none-any.whl", hash = "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5", size = 16725 },
+]
+
+[[package]]
 name = "pytest"
 version = "8.3.3"
 source = { registry = "https://pypi.org/simple" }
@@ -4383,6 +4452,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/9b/335f9764261e915ed497fcdeb11df5dfd6f7bf257d4a6a2a686d80da4d54/requests-2.32.3-py3-none-any.whl", hash = "sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6", size = 64928 },
 ]
 
+[package.optional-dependencies]
+socks = [
+    { name = "pysocks" },
+]
+
 [[package]]
 name = "rich"
 version = "13.8.0"
@@ -4724,6 +4798,7 @@ dependencies = [
     { name = "bengrn" },
     { name = "bio" },
     { name = "biomart" },
+    { name = "celltypist" },
     { name = "cellxgene-census" },
     { name = "django" },
     { name = "docstring-parser" },
@@ -4789,9 +4864,10 @@ flash = [
 requires-dist = [
     { name = "anndata", specifier = ">=0.9.1" },
     { name = "attridict", specifier = ">=0.0.9" },
-    { name = "bengrn", specifier = ">=0.1.0" },
+    { name = "bengrn", specifier = ">=1.2.2" },
     { name = "bio", specifier = ">=1.7.1" },
     { name = "biomart", specifier = ">=0.9.0" },
+    { name = "celltypist", specifier = ">=0.1.1" },
     { name = "cellxgene-census", specifier = ">=0.1.0" },
     { name = "coverage", marker = "extra == 'dev'", specifier = ">=7.3.2" },
     { name = "django", specifier = ">=4.0.0" },
@@ -4800,7 +4876,7 @@ requires-dist = [
     { name = "fair-esm", specifier = ">=0.5.0" },
     { name = "gget", specifier = ">=0.2.0" },
     { name = "gitchangelog", marker = "extra == 'dev'", specifier = ">=3.0.4" },
-    { name = "grnndata", specifier = ">=0.1.0" },
+    { name = "grnndata", specifier = ">=1.1.4" },
     { name = "gseapy", specifier = ">=0.10.0" },
     { name = "hdbscan", specifier = ">=0.8.36" },
     { name = "huggingface-hub", specifier = ">=0.10.0" },

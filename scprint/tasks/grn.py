@@ -44,6 +44,7 @@ class GNInfer:
         precision: str = "16-mixed",
         cell_type_col: str = "cell_type",
         how: str = "random expr",  # random expr, most var within, most var across, given
+        max_len: int = 3000,
         preprocess: str = "softmax",  # sinkhorn, softmax, none
         head_agg: str = "mean",  # mean, sum, none
         filtration: str = "thresh",  # thresh, top-k, mst, known, none
@@ -111,6 +112,7 @@ class GNInfer:
         self.dtype = dtype
         self.forward_mode = forward_mode
         self.k = k
+        self.max_len = max_len
         self.symmetrize = symmetrize
         self.known_grn = known_grn
         self.head_agg = head_agg
@@ -118,6 +120,8 @@ class GNInfer:
         self.curr_genes = None
         self.drop_unexpressed = drop_unexpressed
         self.precision = precision
+        if self.filtration != "none" and self.head_agg == "none":
+            raise ValueError("filtration must be 'none' when head_agg is 'none'")
 
     def __call__(self, model: torch.nn.Module, adata: AnnData, cell_type=None):
         """
@@ -188,15 +192,16 @@ class GNInfer:
         adataset = SimpleAnnDataset(
             subadata, obs_to_output=["organism_ontology_term_id"]
         )
-        self.col = Collator(
+        col = Collator(
             organisms=model.organisms,
             valid_genes=model.genes,
+            max_len=self.max_len if self.how == "random expr" else 0,
             how="some" if self.how != "random expr" else "random expr",
             genelist=self.curr_genes if self.how != "random expr" else [],
         )
         dataloader = DataLoader(
             adataset,
-            collate_fn=self.col,
+            collate_fn=col,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             shuffle=False,
@@ -310,28 +315,25 @@ class GNInfer:
                 )
             elif self.head_agg == "none":
                 attn = attn.detach().cpu().numpy()
-                attn[attn < 0.01] = 0
+                # attn[attn < 0.01] = 0
                 attn = attn.reshape(attn.shape[0], attn.shape[1], 1)
-                attn = sparse.COO.from_numpy(attn)
+                # attn = sparse.COO.from_numpy(attn)
                 if attns is not None:
-                    attns = sparse.concat([attns, attn], axis=2)
+                    attns = np.concatenate([attns, attn], axis=2)
                 else:
                     attns = attn
             else:
                 raise ValueError("head_agg must be one of 'mean', 'max' or 'None'")
         if self.head_agg == "mean":
             attns = attns / Qs.shape[0]
-        if self.head_agg in ["max", "mean"]:
-            attns[attns < 0.01] = 0
-            attns = scipy.sparse.csr_matrix(attns)
         return attns
 
     def filter(self, adj, gt=None):
         if self.filtration == "thresh":
             adj[adj < (1 / adj.shape[-1])] = 0
-            # res = (adj != 0).sum()
-            # if res / adj.shape[0] ** 2 < 0.01:
-            #   adj = scipy.sparse.csr_matrix(adj)
+            res = (adj != 0).sum()
+            if res / adj.shape[0] ** 2 < 0.1:
+                adj = scipy.sparse.csr_matrix(adj)
         elif self.filtration == "none":
             pass
         elif self.filtration == "top-k":
@@ -362,8 +364,7 @@ class GNInfer:
 
     def save(self, grn, subadata, loc=""):
         grn = GRNAnnData(
-            subadata[:, subadata.var.index.isin(self.curr_genes)].copy(),
-            grn=grn,
+            subadata[:, subadata.var.index.isin(self.curr_genes)].copy(), grn=grn
         )
         # grn = grn[:, (grn.X != 0).sum(0) > (self.max_cells / 32)]
         grn.var["TFs"] = [
