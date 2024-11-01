@@ -57,6 +57,7 @@ dependencies = [
     "sparse>=0.15.4",
     "bio>=1.7.1",
     "celltypist>=0.1.1",
+    "datamapplot>=0.4.2",
 ]
 
 [project.optional-dependencies]
@@ -84,9 +85,6 @@ repository = "https://github.com/jkobject/scPRINT"
 
 [tool.ruff]
 line-length = 88
-
-[tool.uv.pip]
-resolution = "lowest-direct"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

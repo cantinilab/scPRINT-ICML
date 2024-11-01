@@ -122,43 +122,6 @@ def isnotebook() -> bool:
         return False  # Probably standard Python interpreter
 
 
-def load_genes(organisms: Union[str, list] = "NCBITaxon:9606"):  # "NCBITaxon:10090",
-    """
-    load_genes loads the genes for a given organism.
-
-    Args:
-        organisms (Union[str, list], optional): A string or list of strings representing the organism(s) to load genes for. Defaults to "NCBITaxon:9606".
-
-    Returns:
-        pd.DataFrame: A DataFrame containing gene information for the specified organism(s).
-    """
-    organismdf = []
-    if type(organisms) is str:
-        organisms = [organisms]
-    for organism in organisms:
-        genesdf = bt.Gene.filter(
-            organism_id=bt.Organism.filter(ontology_id=organism).first().id
-        ).df()
-        genesdf = genesdf.drop_duplicates(subset="ensembl_gene_id")
-        genesdf = genesdf.set_index("ensembl_gene_id").sort_index()
-        # mitochondrial genes
-        genesdf["mt"] = genesdf.symbol.astype(str).str.startswith("MT-")
-        # ribosomal genes
-        genesdf["ribo"] = genesdf.symbol.astype(str).str.startswith(("RPS", "RPL"))
-        # hemoglobin genes.
-        genesdf["hb"] = genesdf.symbol.astype(str).str.contains(("^HB[^(P)]"))
-        genesdf["organism"] = organism
-        organismdf.append(genesdf)
-    organismdf = pd.concat(organismdf)
-    for col in ["source_id", "stable_id", "run_id", "created_by_id", "updated_at"]:
-        if col in organismdf.columns:
-            organismdf.drop(
-                columns=[col],
-                inplace=True,
-            )
-    return organismdf
-
-
 def get_free_gpu():
     """
     get_free_gpu finds the GPU with the most free memory using nvidia-smi.
