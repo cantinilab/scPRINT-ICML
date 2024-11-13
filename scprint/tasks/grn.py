@@ -275,6 +275,7 @@ class GNInfer:
             return attn.detach().cpu().numpy()
         badloc = torch.isnan(attn.sum((0, 2, 3, 4)))
         attn = attn[:, ~badloc, :, :, :]
+        badloc = badloc.detach().cpu().numpy()
         self.curr_genes = (
             np.array(self.curr_genes)[~badloc[self.add_emb_in_model :]]
             if self.how == "random expr"
@@ -399,9 +400,6 @@ class GNInfer:
         return adj
 
     def save(self, grn, subadata, loc=""):
-        import pdb
-
-        pdb.set_trace()
         grn = GRNAnnData(
             subadata[:, subadata.var.index.isin(self.curr_genes)].copy(), grn=grn
         )

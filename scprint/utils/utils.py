@@ -133,7 +133,6 @@ def get_free_gpu():
     import sys
     from io import StringIO
 
-    import pandas as pd
 
     gpu_stats = subprocess.check_output(
         [
