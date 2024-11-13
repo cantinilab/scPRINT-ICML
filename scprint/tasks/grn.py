@@ -25,7 +25,6 @@ from scdataloader.data import SimpleAnnDataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from scprint.utils import load_genes
 from scprint.utils.sinkhorn import SinkhornDistance
 
 from .tmfg import tmfg
