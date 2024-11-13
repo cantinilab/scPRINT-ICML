@@ -1,6 +1,6 @@
 [project]
 name = "scprint"
-version = "1.6.1"
+version = "1.6.2"
 description = "scPRINT is a Large Cell Model for Gene Network Inference, Denoising and more from scRNAseq data"
 authors = [
     {name = "jeremie kalfon", email = "jkobject@gmail.com"}
@@ -93,6 +93,13 @@ line-length = 88
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 ignore = ["E501", "E203", "E266", "E265", "F401", "F403", "E722", "E741", "E731", "E721"]
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "/scprint",
+    "/slurm",
+    "/config",
+]
 
 [tool.hatch.build.targets.wheel]
 only-include = [
