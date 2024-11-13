@@ -1190,7 +1190,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_class=True,
             )
             if len(get_attention_layer) > 0:
-                self.attn.agg([i[:, :, :2, :] for i in output[1]], gene_pos)
+                self.attn.add([i[:, :, :2, :] for i in output[1]], gene_pos)
                 output = output[0]
             cell_embs = output["cell_embs"]
         elif predict_mode == "denoise":
@@ -1203,7 +1203,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_class=True,
             )
             if len(get_attention_layer) > 0:
-                self.attn.agg([i[:, :, :2, :] for i in output[1]], gene_pos)
+                self.attn.add([i[:, :, :2, :] for i in output[1]], gene_pos)
                 output = output[0]
             cell_embs = output["cell_embs"]
         elif predict_mode == "generate":

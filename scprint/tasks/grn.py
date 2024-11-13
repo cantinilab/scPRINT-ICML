@@ -53,12 +53,14 @@ class GNInfer:
         known_grn: Optional[any] = None,
         symmetrize: bool = False,
         doplot: bool = True,
+        shared_qk: bool = True,
         max_cells: int = 0,
         forward_mode: str = "none",
         genes: List[str] = [],
         loc: str = "./",
         dtype: torch.dtype = torch.float16,
         locname: str = "",
+        add_emb_in_model: int = 8,
     ):
         """
         GNInfer a class to infer gene regulatory networks from a dataset using a scPRINT model.
@@ -86,6 +88,7 @@ class GNInfer:
             loc (str, optional): Location to save results. Defaults to "./".
             dtype (torch.dtype, optional): Data type for computations. Defaults to torch.float16.
             locname (str, optional): Name for the location. Defaults to an empty string.
+            add_emb_in_model (int, optional): Number of embeddings to add in the model. Defaults to 8.
 
         """
         self.batch_size = batch_size
@@ -100,8 +103,9 @@ class GNInfer:
                 "most var across",
                 "random expr",
                 "given",
+                "most expr",
             ]
-        ), "how must be one of 'most var within', 'most var across', 'random expr', 'given'"
+        ), "how must be one of 'most var within', 'most var across', 'random expr', 'given', 'most expr'"
         self.num_genes = num_genes
         self.preprocess = preprocess
         self.cell_type_col = cell_type_col
@@ -120,6 +124,8 @@ class GNInfer:
         self.curr_genes = None
         self.drop_unexpressed = drop_unexpressed
         self.precision = precision
+        self.shared_qk = shared_qk
+        self.add_emb_in_model = add_emb_in_model
         if self.filtration != "none" and self.head_agg == "none":
             raise ValueError("filtration must be 'none' when head_agg is 'none'")
 
@@ -142,9 +148,17 @@ class GNInfer:
         subadata = self.predict(model, adata, self.layer, cell_type)
         adjacencies = self.aggregate(model.attn.get(), model.genes)
         if self.head_agg == "none":
-            return self.save(adjacencies[8:, 8:, :], subadata)
+            return self.save(
+                adjacencies[self.add_emb_in_model :, self.add_emb_in_model :, :],
+                subadata,
+            )
         else:
-            return self.save(self.filter(adjacencies)[8:, 8:], subadata)
+            return self.save(
+                self.filter(adjacencies)[
+                    self.add_emb_in_model :, self.add_emb_in_model :
+                ],
+                subadata,
+            )
 
     def predict(self, model, adata, layer, cell_type=None):
         self.curr_genes = None
@@ -181,11 +195,23 @@ class GNInfer:
             pass
         elif self.how == "given" and len(self.genes) > 0:
             self.curr_genes = self.genes
+        elif self.how == "most expr":
+            self.curr_genes = adata.var.index[
+                adata.X.sum(0).A1.argsort()[::-1]
+            ].tolist()[: self.num_genes]
         else:
-            raise ValueError("how must be one of 'most var', 'random expr'")
+            raise ValueError(
+                "how must be one of 'most var', 'random expr', 'most expr'"
+            )
         if self.drop_unexpressed:
             expr = subadata.var[(subadata.X.sum(0) > 0).tolist()[0]].index.tolist()
             self.curr_genes = [i for i in self.curr_genes if i in expr]
+        # Order cells by total count
+        cell_sums = subadata.X.sum(axis=1)
+        order = np.argsort(
+            -cell_sums.A1 if scipy.sparse.issparse(subadata.X) else -cell_sums
+        )
+        subadata = subadata[order].copy()
         subadata = subadata[: self.max_cells] if self.max_cells else subadata
         if len(subadata) == 0:
             raise ValueError("no cells in the dataset")
@@ -212,6 +238,21 @@ class GNInfer:
         model.eval()
         device = model.device.type
 
+        # reparametrize the attn process
+        model.attn.shared_qk = self.shared_qk
+        if self.how != "random expr":
+            if self.num_genes > 10_000 and not self.shared_qk:
+                raise ValueError("need less genes for a non-shared-qk version")
+            if not self.shared_qk:
+                print(len(self.curr_genes))
+                model.attn.gene_dim = (
+                    len(set(self.curr_genes) & set(model.genes)) + self.add_emb_in_model
+                )
+                model.attn.apply_softmax = self.preprocess == "softmax"
+        elif not self.shared_qk:
+            raise ValueError(
+                "full attention (i.e. shared_qk=Fale) is not supported for random expr"
+            )
         with torch.no_grad(), torch.autocast(device_type=device, dtype=self.dtype):
             for batch in tqdm(dataloader):
                 gene_pos, expression, depth = (
@@ -230,13 +271,13 @@ class GNInfer:
         return subadata
 
     def aggregate(self, attn, genes):
-        if self.head_agg == "mean_full":
+        if self.head_agg == "mean_full" or not self.shared_qk:
             self.curr_genes = [i for i in genes if i in self.curr_genes]
-            return attn
+            return attn.detach().cpu().numpy()
         badloc = torch.isnan(attn.sum((0, 2, 3, 4)))
         attn = attn[:, ~badloc, :, :, :]
         self.curr_genes = (
-            np.array(self.curr_genes)[~badloc[8:]]
+            np.array(self.curr_genes)[~badloc[self.add_emb_in_model :]]
             if self.how == "random expr"
             else [i for i in genes if i in self.curr_genes]
         )
@@ -304,29 +345,25 @@ class GNInfer:
                 #    / attn.sum(-1).sum(-1).unsqueeze(-1).unsqueeze(-1)
                 # )  # .view()
             if self.head_agg == "mean":
-                attns = attn.detach().cpu().numpy() + (
-                    attns if attns is not None else 0
-                )
+                attns = attn.detach() + (attns if attns is not None else 0)
             elif self.head_agg == "max":
                 attns = (
-                    np.maximum(attn.detach().cpu().numpy(), attns)
+                    torch.max(attn.detach(), attns)
                     if attns is not None
-                    else attn.detach().cpu().numpy()
+                    else attn.detach()
                 )
             elif self.head_agg == "none":
-                attn = attn.detach().cpu().numpy()
-                # attn[attn < 0.01] = 0
+                attn = attn.detach()
                 attn = attn.reshape(attn.shape[0], attn.shape[1], 1)
-                # attn = sparse.COO.from_numpy(attn)
                 if attns is not None:
-                    attns = np.concatenate([attns, attn], axis=2)
+                    attns = torch.cat((attns, attn), dim=2)
                 else:
                     attns = attn
             else:
                 raise ValueError("head_agg must be one of 'mean', 'max' or 'None'")
         if self.head_agg == "mean":
             attns = attns / Qs.shape[0]
-        return attns
+        return attns.cpu().numpy()
 
     def filter(self, adj, gt=None):
         if self.filtration == "thresh":
@@ -349,7 +386,7 @@ class GNInfer:
 
             loc = np.isin(self.curr_genes, gt.index)
             self.curr_genes = np.array(self.curr_genes)[loc]
-            adj = adj[8:, 8:][loc][:, loc]
+            adj = adj[self.add_emb_in_model :, self.add_emb_in_model :][loc][:, loc]
             adj[gt.values != 1] = 0
             adj = scipy.sparse.csr_matrix(adj)
         elif self.filtration == "tmfg":
@@ -363,6 +400,9 @@ class GNInfer:
         return adj
 
     def save(self, grn, subadata, loc=""):
+        import pdb
+
+        pdb.set_trace()
         grn = GRNAnnData(
             subadata[:, subadata.var.index.isin(self.curr_genes)].copy(), grn=grn
         )
