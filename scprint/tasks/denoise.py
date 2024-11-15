@@ -34,7 +34,6 @@ class Denoiser:
         doplot: bool = False,
         predict_depth_mult: int = 4,
         downsample: Optional[float] = None,
-        devices: List[int] = [0],
         dtype: torch.dtype = torch.float16,
     ):
         """
@@ -63,8 +62,6 @@ class Denoiser:
         self.downsample = downsample
         self.precision = precision
         self.dtype = dtype
-        # self.trainer = Trainer(precision=precision, devices=devices)
-        # subset_hvg=1000, use_layer='counts', is_symbol=True,force_preprocess=True, skip_validate=True)
 
     def __call__(self, model: torch.nn.Module, adata: AnnData):
         """

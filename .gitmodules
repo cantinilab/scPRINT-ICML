@@ -1,3 +1,18 @@
 [submodule "RNABERT"]
 path = scprint/tokenizers/RNABERT
 url = https://github.com/jkobject/RNABERT
+[submodule "tools/DeepSEM"]
+path = tools/DeepSEM
+url = https://github.com/jkobject/DeepSEM
+[submodule "tools/SERGIO"]
+path = tools/SERGIO
+url = https://github.com/jkobject/SERGIO
+[submodule "tools/scFoundation"]
+	path = tools/scFoundation
+	url = https://github.com/biomap-research/scFoundation
+[submodule "tools/scGPT"]
+	path = tools/scGPT
+	url = https://github.com/jkobject/scGPT
+[submodule "tools/Geneformer"]
+	path = tools/Geneformer
+	url = https://huggingface.co/ctheodoris/Geneformer/
