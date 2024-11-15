@@ -508,10 +508,10 @@ class Attention:
         if self.data is None:
             self.data = torch.zeros(
                 [self.gene_dim, self.gene_dim, len(x) * x[0].shape[3]],
-                device="cuda",
+                device=pos.device,
                 dtype=torch.float32,
             )
-            self.div = torch.zeros(1, device="cuda", dtype=torch.float32)
+            self.div = torch.zeros(1, device=pos.device, dtype=torch.float32)
 
         for i, elem in enumerate(x):
             batch, seq_len, _, heads, _ = elem.shape
@@ -545,11 +545,11 @@ class Attention:
         """
         if self.data is None:
             self.data = torch.zeros(
-                [len(x), self.gene_dim] + list(x[0].shape[2:]), device="cuda"
+                [len(x), self.gene_dim] + list(x[0].shape[2:]), device=pos.device
             )
-            self.div = torch.zeros(self.gene_dim, device="cuda")
+            self.div = torch.zeros(self.gene_dim, device=pos.device)
         for i in range(x[0].shape[0]):
-            loc = torch.cat([torch.arange(8, device="cuda"), pos[i] + 8]).int()
+            loc = torch.cat([torch.arange(8, device=pos.device), pos[i] + 8]).int()
             for j in range(len(x)):
                 self.data[j, loc, :, :, :] += x[j][i]
             self.div[loc] += 1

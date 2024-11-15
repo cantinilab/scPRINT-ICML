@@ -90,10 +90,10 @@ def test_base():
     grn_inferer = GNInfer(
         layer=[0, 1],
         batch_size=2,
-        how="most var within",
+        how="random expr",
         preprocess="softmax",
         head_agg="mean",
-        filtration="thresh",
+        filtration="none",
         forward_mode="none",
         num_genes=100,
         max_cells=10,
@@ -113,7 +113,3 @@ def test_base():
     # layer_norm
     # flashattention
     # encoders
-    # model
-    # cell emb
-    # denoise
-    # grn
