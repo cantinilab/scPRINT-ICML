@@ -791,7 +791,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # TASK 3. denoising
         if do_denoise:
             for i in noise:
-                expr = utils.downsample_profile(expression, dropout=i, randsamp=True)
+                expr = utils.downsample_profile(expression, dropout=i)
                 output = self.forward(
                     gene_pos,
                     expression=expr,
