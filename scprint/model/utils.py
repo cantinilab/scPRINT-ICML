@@ -280,7 +280,7 @@ def _init_weights(
                 )
 
 
-def downsample_profile(mat: Tensor, dropout: float, method="new"):
+def downsample_profile(mat: Tensor, dropout: float, method="new", randsamp=False):
     """
     This function downsamples the expression profile of a given single cell RNA matrix.
 
@@ -306,6 +306,8 @@ def downsample_profile(mat: Tensor, dropout: float, method="new"):
     # Randomly drop on average N counts to each element of expression using a heavy tail Gaussian distribution
     # here we try to get the scale of the distribution so as to remove the right number of counts from each gene
     # https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02601-5#:~:text=Zero%20measurements%20in%20scRNA%2Dseq,generation%20of%20scRNA%2Dseq%20data.
+    if randsamp:
+        dropout = torch.rand(mat.shape, device=mat.device) * dropout
     if method == "old":
         totcounts = mat.sum(1)
         batch = mat.shape[0]
