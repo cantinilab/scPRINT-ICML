@@ -243,7 +243,6 @@ def default_benchmark(
     """
     adata = sc.read_h5ad(default_dataset)
     denoise = Denoiser(
-        model,
         batch_size=40,
         max_len=max_len,
         max_cells=10_000,
@@ -251,9 +250,8 @@ def default_benchmark(
         num_workers=8,
         predict_depth_mult=10,
         downsample=0.7,
-        devices=1,
     )
-    return denoise(adata)[0]
+    return denoise(model, adata)[0]
 
 
 def open_benchmark(model):

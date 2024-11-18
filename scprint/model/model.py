@@ -132,6 +132,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.fused_adam = False
         self.lr_reduce_patience = 1
         self.lr_reduce_factor = 0.6
+        self.test_every = 1
         self.lr_reduce_monitor = "val_loss"
         self.name = ""
         self.lr = lr
@@ -790,7 +791,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # TASK 3. denoising
         if do_denoise:
             for i in noise:
-                expr = utils.downsample_profile(expression, dropout=i)
+                expr = utils.downsample_profile(expression, dropout=i, randsamp=True)
                 output = self.forward(
                     gene_pos,
                     expression=expr,
@@ -1103,7 +1104,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             self.log_adata(
                 gtclass=self.info, name="validation_part_" + str(self.counter)
             )
-            if (self.current_epoch + 1) % 30 == 0:
+            if (self.current_epoch + 1) % self.test_every == 0:
                 self.on_test_epoch_end()
 
     def test_step(self, *args, **kwargs):

@@ -504,7 +504,6 @@ def default_benchmark(
                 max_cells=maxcells,
                 doplot=False,
                 batch_size=batch_size,
-                devices=1,
             )
             grn = grn_inferer(model, adata)
             grn.varp["all"] = grn.varp["GRN"]
@@ -634,7 +633,6 @@ def default_benchmark(
             doplot=False,
             num_workers=8,
             batch_size=batch_size,
-            devices=1,
         )
         grn = grn_inferer(model, nadata)
         grn.varp["all"] = grn.varp["GRN"]
@@ -695,29 +693,28 @@ def default_benchmark(
         adata.var["isTF"] = False
         adata.var.loc[adata.var.symbol.isin(grnutils.TF), "isTF"] = True
         for celltype in cell_types:
-            print(celltype)
-            grn_inferer = GNInfer(
-                layer=layers,
-                how="random expr",
-                preprocess="softmax",
-                head_agg="max",
-                filtration="none",
-                forward_mode="none",
-                num_workers=8,
-                num_genes=2200,
-                max_cells=maxcells,
-                doplot=False,
-                batch_size=batch_size,
-                devices=1,
-            )
-
-            grn = grn_inferer(model, adata[adata.X.sum(1) > 500], cell_type=celltype)
-            grn.var.index = make_index_unique(grn.var["symbol"].astype(str))
-            metrics[celltype + "_scprint"] = BenGRN(
-                grn, doplot=False
-            ).scprint_benchmark()
-            del grn
-            gc.collect()
+            # print(celltype)
+            # grn_inferer = GNInfer(
+            #    layer=layers,
+            #    how="random expr",
+            #    preprocess="softmax",
+            #    head_agg="max",
+            #    filtration="none",
+            #    forward_mode="none",
+            #    num_workers=8,
+            #    num_genes=2200,
+            #    max_cells=maxcells,
+            #    doplot=False,
+            #    batch_size=batch_size,
+            # )
+            #
+            # grn = grn_inferer(model, adata[adata.X.sum(1) > 500], cell_type=celltype)
+            # grn.var.index = make_index_unique(grn.var["symbol"].astype(str))
+            # metrics[celltype + "_scprint"] = BenGRN(
+            #    grn, doplot=False
+            # ).scprint_benchmark()
+            # del grn
+            # gc.collect()
             grn_inferer = GNInfer(
                 layer=layers,
                 how="most var across",
@@ -730,7 +727,6 @@ def default_benchmark(
                 max_cells=maxcells,
                 doplot=False,
                 batch_size=batch_size,
-                devices=1,
             )
             grn = grn_inferer(model, adata[adata.X.sum(1) > 500], cell_type=celltype)
             grn.var.index = make_index_unique(grn.var["symbol"].astype(str))
