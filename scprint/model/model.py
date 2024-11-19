@@ -309,7 +309,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             size = checkpoints["state_dict"][
                 "cls_decoders." + name + ".out_layer.bias"
             ].shape[0]
-            if size > clss.out_layer.bias.shape[0]:
+            if size != clss.out_layer.bias.shape[0]:
                 self.cls_decoders[name].out_layer = torch.nn.Linear(
                     clss.out_layer.weight.shape[1], size
                 )
@@ -342,7 +342,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                     self.trainer.datamodule.kwargs["collate_fn"].organism_name
                     in mencoders
                 ):
-                    self.trainer.datamodule.kwargs["collate_fn"].setup(
+                    self.trainer.datamodule.kwargs["collate_fn"]._setup(
                         mencoders[
                             self.trainer.datamodule.kwargs["collate_fn"].organism_name
                         ],
