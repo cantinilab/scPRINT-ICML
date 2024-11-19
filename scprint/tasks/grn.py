@@ -345,25 +345,22 @@ class GNInfer:
                 #    / attn.sum(-1).sum(-1).unsqueeze(-1).unsqueeze(-1)
                 # )  # .view()
             if self.head_agg == "mean":
-                attns = attn.detach() + (attns if attns is not None else 0)
+                attns = attn + (attns if attns is not None else 0)
             elif self.head_agg == "max":
-                attns = (
-                    torch.max(attn.detach(), attns)
-                    if attns is not None
-                    else attn.detach()
-                )
+                attns = torch.max(attn, attns) if attns is not None else attn
             elif self.head_agg == "none":
-                attn = attn.detach()
                 attn = attn.reshape(attn.shape[0], attn.shape[1], 1)
                 if attns is not None:
-                    attns = torch.cat((attns, attn), dim=2)
+                    attns = torch.cat((attns, attn.detach().cpu()), dim=2)
                 else:
-                    attns = attn
+                    attns = attn.detach().cpu()
             else:
                 raise ValueError("head_agg must be one of 'mean', 'max' or 'None'")
         if self.head_agg == "mean":
             attns = attns / Qs.shape[0]
-        return attns.cpu().numpy()
+        return (
+            attns.detach().cpu().numpy() if self.head_agg != "none" else attns.numpy()
+        )
 
     def filter(self, adj, gt=None):
         if self.filtration == "thresh":
