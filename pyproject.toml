@@ -1,6 +1,6 @@
 [project]
 name = "scprint"
-version = "1.6.2"
+version = "1.6.4"
 description = "scPRINT is a Large Cell Model for Gene Network Inference, Denoising and more from scRNAseq data"
 authors = [
     {name = "jeremie kalfon", email = "jkobject@gmail.com"}

@@ -41,7 +41,7 @@ trainer:
         weight_decay: 0.1
         fused_adam: True
         lr_patience: 1
-        mask_ratio: 
+        mask_ratio:
           - 0.3
     - class_path: lightning.pytorch.callbacks.StochasticWeightAveraging
       init_args:
@@ -58,8 +58,8 @@ trainer:
       init_args:
         logging_interval: epoch
     #- class_path: lightning.pytorch.callbacks.LearningRateFinder
-      #init_args:
-      #  mode: exponential
+    #init_args:
+    #  mode: exponential
   #plugins:
   #  - class_path: lightning.pytorch.plugins.environments.SLURMEnvironment
   #    requeue_signal: signal.SIGHUP
@@ -117,7 +117,6 @@ data:
     - self_reported_ethnicity_ontology_term_id
     - sex_ontology_term_id
     - organism_ontology_term_id
-  clss_to_pred: ${data.clss_to_weight}
   all_clss:
     - cell_type_ontology_term_id
     # - tissue_ontology_term_id

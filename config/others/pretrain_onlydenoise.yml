@@ -57,8 +57,8 @@ trainer:
       init_args:
         logging_interval: epoch
     #- class_path: lightning.pytorch.callbacks.LearningRateFinder
-      #init_args:
-      #  mode: exponential
+    #init_args:
+    #  mode: exponential
 model:
   nhead: 4
   nlayers: 8
@@ -114,7 +114,6 @@ data:
     - self_reported_ethnicity_ontology_term_id
     - sex_ontology_term_id
     - organism_ontology_term_id
-  clss_to_pred: ${data.clss_to_weight}
   all_clss:
     - cell_type_ontology_term_id
     # - tissue_ontology_term_id

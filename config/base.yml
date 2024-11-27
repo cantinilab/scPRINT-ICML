@@ -91,7 +91,6 @@ data:
     - sex_ontology_term_id
     - organism_ontology_term_id
     # - cell_culture
-  clss_to_pred: ${data.clss_to_weight}
   all_clss:
     - cell_type_ontology_term_id
     # - tissue_ontology_term_id

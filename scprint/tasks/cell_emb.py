@@ -411,7 +411,9 @@ def default_benchmark(
     embedder = Embedder(
         pred_embedding=["cell_type_ontology_term_id"],
         doclass=(default_dataset not in ["pancreas", "lung"]),
-        devices=1,
+        max_len=4000,
+        keep_all_cls_pred=False,
+        output_expression="none",
     )
     embed_adata, metrics = embedder(model, adata.copy())
 

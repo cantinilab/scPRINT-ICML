@@ -183,3 +183,6 @@ file.txt
 tests/data/step_0__predict_part_0_0.h5ad
 data/human_dcm_hcm_nf/
 data/geneformertest.csv
+clf_omni.pkl
+metrics__step0.json
+config/torm.txt
