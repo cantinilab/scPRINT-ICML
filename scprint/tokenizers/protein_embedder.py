@@ -4,19 +4,20 @@ import pandas as pd
 from torch import load
 
 from scprint.utils.utils import run_command
-
+import torch
+from transformers import AutoModel, AutoTokenizer
 # https://github.com/agemagician/ProtTrans
 # https://academic.oup.com/nargab/article/4/1/lqac012/6534363
 
 
-class PROTBERT:
+class ESM2:
     def __init__(
         self,
         config: str = "esm-extract",
         pretrained_model: str = "esm2_t33_650M_UR50D",
     ):
         """
-        PROTBERT a ghost class to call protein LLMs to encode protein sequences.
+        ESM2 a ghost class to call protein LLMs to encode protein sequences.
 
         Args:
             config (str, optional): The configuration for the model. Defaults to "esm-extract".
@@ -29,7 +30,7 @@ class PROTBERT:
         self, input_file: str, output_folder: str = "/tmp/esm_out/", cache: bool = True
     ) -> pd.DataFrame:
         """
-        Call the PROTBERT model on the input file.
+        Call the ESM2 model on the input file.
 
         Args:
             input_file (str): The input file to be processed.
@@ -41,7 +42,7 @@ class PROTBERT:
         """
         if not os.path.exists(output_folder) or not cache:
             os.makedirs(output_folder, exist_ok=True)
-            print("running protbert")
+            print("running ESM2")
             cmd = (
                 self.config
                 + " "
