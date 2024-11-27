@@ -185,3 +185,4 @@ data/human_dcm_hcm_nf/
 data/geneformertest.csv
 clf_omni.pkl
 metrics__step0.json
+config/torm.txt
