@@ -324,6 +324,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 n_cls=size,
             )
         classes = checkpoints["hyper_parameters"]["classes"]
+        self.normalization = checkpoints["hyper_parameters"]["normalization"]
         self.label_decoders = checkpoints["hyper_parameters"]["label_decoders"]
         self.labels_hierarchy = checkpoints["hyper_parameters"]["labels_hierarchy"]
         for k, v in self.labels_hierarchy.items():
@@ -344,7 +345,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                     in mencoders
                 ):
                     self.trainer.datamodule.kwargs["collate_fn"]._setup(
-                        mencoders[
+                        org_to_id=mencoders[
                             self.trainer.datamodule.kwargs["collate_fn"].organism_name
                         ],
                         valid_genes=self.genes,
@@ -874,6 +875,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         do_ecs=False,
         do_adv_cls=False,
         do_adv_batch=False,
+        do_mse=0,
     ):
         """
         _compute_loss compute the loss of the model given output from the forward pass
@@ -887,6 +889,9 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 Defaults to False.
             do_adv_cls (bool, optional): A flag to indicate whether to perform adversarial classification.
                 Defaults to False.
+            do_mse (float, optional): A scaling factor to indicate whether and how much to weight mean
+            squared error loss in addition to zinb loss.
+                Defaults to 0.
 
         Raises:
             ValueError: Raised when an invalid operation or input is encountered.
@@ -904,6 +909,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 mu=output["mean"],
                 target=expression,
             )
+            if do_mse:
+                loss_expr += loss.mse(
+                    input=torch.log(output["mean"] + 1)
+                    * (1 - torch.sigmoid(output["zero_logits"])),
+                    target=torch.log(expression + 1),
+                )
         elif "disp" in output:
             loss_expr = loss.nb(
                 theta=output["disp"],

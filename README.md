@@ -80,11 +80,11 @@ To use scPRINT, you will need to use [lamin.ai](https://lamin.ai/). This is need
 To start you will need to do:
 
 ```bash
-conda create -n <env-name> python==3.10 #scprint might work with python >3.10, but it is not tested
+uv venv -n <env-name> python==3.10 #scprint might work with python >3.10, but it is not tested
 #one of
-pip install scprint # OR
-pip install scprint[dev] # for the dev dependencies (building etc..) OR
-pip install scprint[flash] # to use flashattention2 with triton: only if you have a compatible gpu (e.g. not available for apple GPUs for now, see https://github.com/triton-lang/triton?tab=readme-ov-file#compatibility)
+uv pip install scprint # OR
+uv pip install scprint[dev] # for the dev dependencies (building etc..) OR
+uv pip install scprint[flash] # to use flashattention2 with triton: only if you have a compatible gpu (e.g. not available for apple GPUs for now, see https://github.com/triton-lang/triton?tab=readme-ov-file#compatibility)
 #OR pip install scPRINT[dev,flash]
 
 lamin init --storage ./testdb --name test --schema bionty
