@@ -52,7 +52,7 @@ class Embedder:
         Args:
             batch_size (int, optional): The size of the batches to be used in the DataLoader. Defaults to 64.
             num_workers (int, optional): The number of worker processes to use for data loading. Defaults to 8.
-            how (str, optional): The method to be used for selecting valid genes. Defaults to "most expr".
+            how (str, optional): The method to be used for selecting valid genes. Defaults to "random expr".
             max_len (int, optional): The maximum length of the gene sequence. Defaults to 1000.
             add_zero_genes (int, optional): The number of zero genes to add to the gene sequence. Defaults to 100.
             precision (str, optional): The precision to be used in the Trainer. Defaults to "16-mixed".

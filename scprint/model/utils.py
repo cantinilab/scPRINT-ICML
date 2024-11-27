@@ -467,7 +467,13 @@ def translate(
 
 
 class Attention:
-    def __init__(self, gene_dim: int, comp_attn: bool = False):
+    def __init__(
+        self,
+        gene_dim: int,
+        comp_attn: bool = False,
+        apply_softmax: bool = False,
+        sum_heads: bool = True,
+    ):
         """
         Initialize the Attention class.
 
@@ -478,10 +484,20 @@ class Attention:
         self.data: Optional[Tensor] = None
         self.gene_dim: int = gene_dim
         self.div: Optional[Tensor] = None
-        self.attn: Optional[Tensor] = None
         self.comp_attn: bool = comp_attn
+        self.apply_softmax: bool = apply_softmax
+        self.sum_heads: bool = sum_heads
+        self.shared_qk: bool = True
 
-    def agg(self, x: List[Tensor], pos: Tensor) -> None:
+    def add(self, *args, **kwargs) -> None:
+        if self.shared_qk:
+            self.add_qk(*args, **kwargs)
+        else:
+            self.add_attn(*args, **kwargs)
+
+    def add_attn(
+        self, x: List[Tensor], pos: Tensor, expr: Optional[Tensor] = None
+    ) -> None:
         """
         Aggregate the attention or data based on the comp_attn flag.
 
@@ -489,33 +505,37 @@ class Attention:
             x (List[Tensor]): List of tensors to aggregate.
             pos (Tensor): Position tensor.
         """
-        if self.comp_attn:
-            if self.attn is None:
-                self.attn = torch.zeros([self.gene_dim, self.gene_dim], device="cuda")
-                self.div = torch.zeros(self.gene_dim, device="cuda")
-            for j in range(x[0].shape[0]):  # •cells, •context, •QK, •heads, •dim
-                loc = torch.cat([torch.arange(8, device="cuda"), pos[j] + 8]).int()
-                for i in range(len(x)):
-                    for k in range(x[0].shape[3]):
-                        self.attn[loc[:, None], loc] += torch.nn.functional.softmax(
-                            (x[i][j, :, 0, k, :] @ x[i][j, :, 1, k, :].T)
-                            * (x[0].shape[-1] ** -0.5),
-                            dim=-1,
-                        )
-                    self.div[loc] += x[0].shape[3] * len(x)
-            torch.cuda.empty_cache()
-        else:
-            pos = pos.detach().to("cpu")
-            if self.data is None:
-                self.data = torch.zeros([len(x), self.gene_dim] + list(x[0].shape[2:]))
-                self.div = torch.zeros(self.gene_dim)
-            for i in range(x[0].shape[0]):
-                loc = torch.cat([torch.arange(8), pos[i] + 8]).int()
-                for j in range(len(x)):
-                    self.data[j, loc, :, :, :] += x[j][i].detach().to("cpu")
-                self.div[loc] += 1
+        if self.data is None:
+            self.data = torch.zeros(
+                [self.gene_dim, self.gene_dim, len(x) * x[0].shape[3]],
+                device=pos.device,
+                dtype=torch.float32,
+            )
+            self.div = torch.zeros(1, device=pos.device, dtype=torch.float32)
 
-    def add(self, x: List[Tensor], pos: Tensor) -> None:
+        for i, elem in enumerate(x):
+            batch, seq_len, _, heads, _ = elem.shape
+            if self.apply_softmax:
+                attn = torch.nn.functional.softmax(
+                    elem[:, :, 0, :, :].permute(0, 2, 1, 3)
+                    @ elem[:, :, 1, :, :].permute(0, 2, 3, 1),
+                    dim=-1,
+                )
+                if expr is not None:
+                    attn = attn * (expr > 0).float()
+                self.data[:, :, heads * i : heads * (i + 1)] += (
+                    attn.sum(0).permute(1, 2, 0) / batch
+                )
+            else:
+                self.data[:, :, heads * i : heads * (i + 1)] += (
+                    elem[:, :, 0, :, :].permute(0, 2, 1, 3)
+                    @ elem[:, :, 1, :, :].permute(0, 2, 3, 1)
+                ).sum(0).permute(1, 2, 0) / batch
+        self.div += 1
+
+    def add_qk(
+        self, x: List[Tensor], pos: Tensor, expr: Optional[Tensor] = None
+    ) -> None:
         """
         Add data to the internal storage.
 
@@ -523,17 +543,16 @@ class Attention:
             x (List[Tensor]): List of tensors to add.
             pos (Tensor): Position tensor.
         """
-        pos = pos.detach().to("cpu")
         if self.data is None:
-            self.data = torch.zeros([len(x), self.gene_dim] + list(x[0].shape[2:]))
-            self.div = torch.zeros(self.gene_dim)
-
-        for i in range(x[0].shape[0]):
-            # loc = torch.cat([torch.Tensor([r for r in range(8)]), pos[i] + 8]).int()
-            self.data.append(
-                torch.cat([x[j][i].detach().to("cpu") for j in range(len(x))])
+            self.data = torch.zeros(
+                [len(x), self.gene_dim] + list(x[0].shape[2:]), device=pos.device
             )
-            # self.div[loc] += 1
+            self.div = torch.zeros(self.gene_dim, device=pos.device)
+        for i in range(x[0].shape[0]):
+            loc = torch.cat([torch.arange(8, device=pos.device), pos[i] + 8]).int()
+            for j in range(len(x)):
+                self.data[j, loc, :, :, :] += x[j][i]
+            self.div[loc] += 1
 
     def get(self) -> Optional[np.ndarray]:
         """
@@ -542,19 +561,16 @@ class Attention:
         Returns:
             Optional[np.ndarray]: The aggregated attention or data.
         """
-        if self.comp_attn:
-            loc = self.attn.sum(1) != 0
-            return (
-                (self.attn[loc][:, loc] / (self.attn.sum(1)[loc] + 0.0001))
-                .detach()
-                .cpu()
-                .numpy()
-            )
-        else:
+        if self.shared_qk:
             if self.data is None:
                 return None
             # shape is (layers, genes, qkv, heads, emb)
             return self.data / self.div.view(1, self.div.shape[0], 1, 1, 1)
+        else:
+            if self.data is None:
+                return None
+            self.data.div_(self.div)
+            return self.data
 
 
 def test(model: torch.nn.Module, name: str, filedir: str) -> None:

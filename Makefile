@@ -76,7 +76,7 @@ release:          ## Create a new tag for release.
 	@git commit -m "release: version $${TAG} 🚀"
 	@echo "creating git tag : $${TAG}"
 	@git tag $${TAG}
-	@git push -u origin HEAD --tags
+	@git push -u cantini HEAD --tags
 	@echo "Github Actions will detect the new tag and release the new version."
 	@mkdocs gh-deploy
 	@echo "Documentation deployed to https://jkobject.github.io/scPRINT/"

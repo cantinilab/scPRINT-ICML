@@ -132,6 +132,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.fused_adam = False
         self.lr_reduce_patience = 1
         self.lr_reduce_factor = 0.6
+        self.test_every = 1
         self.lr_reduce_monitor = "val_loss"
         self.name = ""
         self.lr = lr
@@ -1103,7 +1104,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             self.log_adata(
                 gtclass=self.info, name="validation_part_" + str(self.counter)
             )
-            if (self.current_epoch + 1) % 30 == 0:
+            if (self.current_epoch + 1) % self.test_every == 0:
                 self.on_test_epoch_end()
 
     def test_step(self, *args, **kwargs):
@@ -1190,7 +1191,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_class=True,
             )
             if len(get_attention_layer) > 0:
-                self.attn.agg([i[:, :, :2, :] for i in output[1]], gene_pos)
+                self.attn.add([i[:, :, :2, :] for i in output[1]], gene_pos)
                 output = output[0]
             cell_embs = output["cell_embs"]
         elif predict_mode == "denoise":
@@ -1203,7 +1204,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_class=True,
             )
             if len(get_attention_layer) > 0:
-                self.attn.agg([i[:, :, :2, :] for i in output[1]], gene_pos)
+                self.attn.add([i[:, :, :2, :] for i in output[1]], gene_pos)
                 output = output[0]
             cell_embs = output["cell_embs"]
         elif predict_mode == "generate":

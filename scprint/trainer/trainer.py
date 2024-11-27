@@ -21,6 +21,7 @@ class TrainingMode(Callback):
         do_generate: bool = True,
         class_scale: float = 1.5,
         mask_ratio: List[float] = [],  # 0.3
+        test_every: int = 1,
         warmup_duration: int = 500,
         fused_adam: bool = False,
         adv_class_scale: float = 0.1,
@@ -69,6 +70,7 @@ class TrainingMode(Callback):
             optim (str): Optimizer to use during training. Defaults to "adamW".
             weight_decay (float): Weight decay to apply during optimization. Defaults to 0.01.
             name (str): Name of the training mode. Defaults to an empty string. should be an ID for the model
+            test_every (int): Number of epochs between testing. Defaults to 1.
         """
         super().__init__()
         self.do_denoise = do_denoise
@@ -100,6 +102,7 @@ class TrainingMode(Callback):
         self.do_adv_batch = do_adv_batch
         self.run_full_forward = run_full_forward
         self.name = name
+        self.test_every = test_every
 
     def __repr__(self):
         return (
@@ -131,7 +134,8 @@ class TrainingMode(Callback):
             f"do_cls={self.do_cls}, "
             f"do_adv_batch={self.do_adv_batch}, "
             f"run_full_forward={self.run_full_forward}), "
-            f"name={self.name})"
+            f"name={self.name}, "
+            f"test_every={self.test_every})"
         )
 
     def setup(self, trainer, model, stage=None):
@@ -165,4 +169,5 @@ class TrainingMode(Callback):
         model.optim = self.optim
         model.weight_decay = self.weight_decay
         model.name = self.name
+        model.test_every = self.test_every
         # model.configure_optimizers()
