@@ -30,15 +30,16 @@ def create_mlp_cls(embed_dim, mlp_ratio, act_layer, fused_mlp):
     return mlp_cls
 
 
-class FlashTransformerEncoder(nn.Module):
+class FlashTransformer(nn.Module):
     def __init__(
         self,
         d_model: int,
         nhead: int,
         nlayers: int,
-        dropout: float = 0.1,
-        residual_in_fp32: bool = True,
         num_heads_kv: Optional[int] = None,
+        dropout: float = 0.1,
+        cross_attn: bool = False,  # if True, becomes a decoder
+        residual_in_fp32: bool = True,
         checkpointing: bool = False,
         fused_dropout_add_ln: bool = False,
         return_residual: bool = False,
@@ -52,7 +53,7 @@ class FlashTransformerEncoder(nn.Module):
         weight_init: str = "",
     ):
         """
-        FlashTransformerEncoder a transformer encoder with flash attention.
+        FlashTransformer a transformer encoder with flash attention.
 
         Args:
             d_model (int): The dimension of the input vectors.
@@ -76,7 +77,7 @@ class FlashTransformerEncoder(nn.Module):
             ImportError: Raised when Triton is not installed but fused_dropout_add_ln is set to True.
             NotImplementedError: Raised when an unsupported operation is attempted.
         """
-        super(FlashTransformerEncoder, self).__init__()
+        super(FlashTransformer, self).__init__()
 
         self.blocks = nn.ModuleList()
         dpr = [
@@ -88,10 +89,11 @@ class FlashTransformerEncoder(nn.Module):
             attention = partial(
                 MHA,
                 num_heads=nhead,
+                num_heads_kv=num_heads_kv,
                 dropout=dropout,
                 causal=False,
                 use_flash_attn=use_flash_attn,
-                num_heads_kv=num_heads_kv,
+                cross_attn=cross_attn,
                 checkpointing=checkpointing,
                 fused_bias_fc=fused_bias_fc,
                 layer_idx=i,
@@ -138,6 +140,7 @@ class FlashTransformerEncoder(nn.Module):
     def forward(
         self,
         hidden_states: Tensor,
+        x_kv: Optional[Tensor] = None,
         mask: Optional[Tensor] = None,
         return_qkv=[],
         bias: torch.Tensor = None,
@@ -150,6 +153,7 @@ class FlashTransformerEncoder(nn.Module):
         for i, block in enumerate(self.blocks):
             hidden_states = block(
                 hidden_states,
+                x_kv,
                 residual,
                 return_qkv=(i in return_qkv),
                 bias=bias if i in bias_layer else None,
@@ -160,9 +164,7 @@ class FlashTransformerEncoder(nn.Module):
                     hidden_states[:-1] if self.prenorm else hidden_states
                 )
             else:
-                hidden_states, residual = (
-                    hidden_states if self.prenorm else hidden_states
-                )
+                hidden_states, residual = hidden_states
         if self.prenorm:
             if not self.fused_dropout_add_ln:
                 residual = self.drop_path(self.dropout(hidden_states)) + residual
