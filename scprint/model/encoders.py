@@ -181,6 +181,7 @@ class ContinuousValueEncoder(nn.Module):
         super(ContinuousValueEncoder, self).__init__()
         self.max_value = max_value
         self.encoder = nn.ModuleList()
+        self.mask_value = 0  # nn.Embedding(1, d_model)
         self.encoder.append(nn.Linear(size, d_model))
         for _ in range(layers - 1):
             self.encoder.append(nn.LayerNorm(d_model))
@@ -201,7 +202,7 @@ class ContinuousValueEncoder(nn.Module):
         for val in self.encoder:
             x = val(x)
         if mask is not None:
-            x = x.masked_fill_(mask.unsqueeze(-1), 0)
+            x = x.masked_fill_(mask.unsqueeze(-1), self.mask_value(0))
         return x
 
 
