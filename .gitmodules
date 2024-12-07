@@ -8,11 +8,11 @@ url = https://github.com/jkobject/DeepSEM
 path = tools/SERGIO
 url = https://github.com/jkobject/SERGIO
 [submodule "tools/scFoundation"]
-	path = tools/scFoundation
-	url = https://github.com/biomap-research/scFoundation
+path = tools/scFoundation
+url = https://github.com/biomap-research/scFoundation
 [submodule "tools/scGPT"]
-	path = tools/scGPT
-	url = https://github.com/jkobject/scGPT
+path = tools/scGPT
+url = https://github.com/jkobject/scGPT
 [submodule "tools/Geneformer"]
-	path = tools/Geneformer
-	url = https://huggingface.co/ctheodoris/Geneformer/
+path = tools/Geneformer
+url = https://huggingface.co/ctheodoris/Geneformer/
