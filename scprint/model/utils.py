@@ -1,6 +1,7 @@
 import gc
 import json
 import math
+import os.path
 from collections import Counter
 from typing import Dict, List, Optional, Union
 
@@ -11,15 +12,15 @@ import scanpy as sc
 import torch
 from anndata import AnnData
 from matplotlib import pyplot as plt
+from scdataloader.utils import translate
 from torch import Tensor
 from torch.distributions import Gamma, Poisson
 
+from .. import utils
 from ..tasks import cell_emb as embbed_task
 from ..tasks import denoise as denoise_task
 from ..tasks import grn as grn_task
-from .. import utils
-from scdataloader.utils import translate
-import os.path
+
 # from scprint.tasks import generate
 
 FILEDIR = os.path.dirname(os.path.realpath(__file__))
@@ -385,10 +386,9 @@ class WeightedMasker:
         Randomly mask a batch of data.
 
         Args:
-            shape (list[int]): The shape of the data.
-            mask_ratio (float): The ratio of genes to mask, default to 0.15.
-            mask_value (int): The value to mask with, default to -1.
-            pad_value (int): The value of padding in the values, will be kept unchanged.
+            genes (list[str]): The list of genes the model might see.
+            TFs (list[str]): The list of TFs the model can drop.
+            inv_weight (float): How likely it is to drop a non TF compared to a TF.
 
         Returns:
             torch.Tensor: A tensor of masked data.
@@ -400,24 +400,23 @@ class WeightedMasker:
         self.max_to_drop = (self.weights == inv_weight).sum()
         self.inv_weight = inv_weight
 
-    def __call__(self, ids: torch.Tensor, mask_ratio: float) -> torch.Tensor:
-        mask = []
+    def __call__(self, ids: torch.Tensor, mask_ratio: float = 1.0) -> torch.Tensor:
         if self.inv_weight == 0:
             if mask_ratio * ids.shape[1] > self.max_to_drop:
                 raise ValueError("Cannot drop more than max_to_drop")
         # Create a tensor of probabilities for each position
         probs = self.weights.expand(ids.shape[0], -1).to(ids.device)
+        ids = ids.to(torch.int64)
+        probs = torch.gather(
+            probs, 1, ids
+        )  # Get probabilities only for the indices in ids
         probs = probs / probs.sum(1, keepdim=True)
 
         # Sample from multinomial for each item in batch
         num_samples = int(ids.shape[1] * mask_ratio)
         mask = torch.zeros_like(ids, dtype=torch.bool)
         sampled = torch.multinomial(probs, num_samples, replacement=False)
-
-        # Set the sampled positions to True in the mask
-        mask.scatter_(1, sampled, True)
-
-        return mask
+        return mask.scatter_(1, sampled, True)
 
 
 def zinb_sample(

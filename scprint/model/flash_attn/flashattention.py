@@ -956,8 +956,8 @@ def _flash_attn_forward(
     # shape constraints
     batch, seqlen_q, nheads, d = q.shape
     _, seqlen_k, _, _ = k.shape
-    assert k.shape == (batch, seqlen_k, nheads, d)
-    assert v.shape == (batch, seqlen_k, nheads, d)
+    assert k.shape[:2] == (batch, seqlen_k)
+    assert v.shape[:2] == (batch, seqlen_k)
     assert d <= 128, "FlashAttention only support head dimensions up to 128"
     assert q.dtype == k.dtype == v.dtype, "All tensors must have the same type"
     assert q.dtype in [torch.float16, torch.bfloat16], "Only support fp16 and bf16"
@@ -1259,6 +1259,7 @@ class FlashAttnKVPackedFunc(torch.autograd.Function):
         """
         # Make sure that the last dimension is contiguous
         q, kv = [x if x.stride(-1) == 1 else x.contiguous() for x in [q, kv]]
+        print(q.shape, kv.shape)
         o, lse, ctx.softmax_scale = _flash_attn_forward(
             q,
             kv[:, :, 0],

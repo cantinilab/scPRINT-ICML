@@ -84,6 +84,8 @@ class PositionalEncoding(nn.Module):
         for _, v in token_to_pos.items():
             arr.append(pe[v - 1].numpy())
         pe = torch.Tensor(np.array(arr))
+        # Remove the unnecessary middle dimension since pe should be [m, d]
+        pe = pe.squeeze(1)
         self.register_buffer("pe", pe)
 
     def forward(self, gene_pos: Tensor) -> Tensor:
@@ -91,7 +93,7 @@ class PositionalEncoding(nn.Module):
         Args:
             x: Tensor, shape [seq_len, batch_size, embedding_dim]
         """
-        return torch.index_select(self.pe, 0, gene_pos.view(-1)).view(
+        return torch.index_select(self.pe, 0, gene_pos.reshape(-1)).reshape(
             gene_pos.shape + (-1,)
         )
 
@@ -181,7 +183,7 @@ class ContinuousValueEncoder(nn.Module):
         super(ContinuousValueEncoder, self).__init__()
         self.max_value = max_value
         self.encoder = nn.ModuleList()
-        self.mask_value = 0  # nn.Embedding(1, d_model)
+        # self.mask_value = nn.Embedding(1, d_model)
         self.encoder.append(nn.Linear(size, d_model))
         for _ in range(layers - 1):
             self.encoder.append(nn.LayerNorm(d_model))
@@ -202,7 +204,8 @@ class ContinuousValueEncoder(nn.Module):
         for val in self.encoder:
             x = val(x)
         if mask is not None:
-            x = x.masked_fill_(mask.unsqueeze(-1), self.mask_value(0))
+            x = x.masked_fill_(mask.unsqueeze(-1), 0)
+            # x = x.masked_fill_(mask.unsqueeze(-1), self.mask_value(0))
         return x
 
 

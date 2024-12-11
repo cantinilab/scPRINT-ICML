@@ -20,7 +20,7 @@ from torch import Tensor, nn, optim
 from . import decoders, encoders, loss, utils
 from .flash_attn import FlashTransformer
 from .loss import grad_reverse
-from .utils import simple_masker, WeightedMasker
+from .utils import WeightedMasker, simple_masker
 
 FILEDIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -142,7 +142,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.embs = None
         self.pred_log_adata = True
         self.attn = utils.Attention(len(classes) + 2 + len(genes))
-        self.tf_masker = WeightedMasker(genes)
+        self.tf_masker = WeightedMasker(genes, inv_weight=0.05)
         self.predict_depth_mult = 3
         self.predict_mode = "none"
         self.keep_all_cls_pred = False
@@ -542,6 +542,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         )
         # if not provided we will mult by the current expression sum
         depth_mult = expression.sum(1) if depth_mult is None else depth_mult
+        if transformer_output.isnan().any():
+            import pdb
+
+            pdb.set_trace()
+        else:
+            print("no nan")
         if len(get_attention_layer) > 0:
             transformer_output, qkvs = transformer_output
             return (
@@ -610,6 +616,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             # optimizer = GaLoreAdamW(param_groups, lr=self.hparams.lr)
         else:
             raise ValueError(f"Unknown optimizer: {self.optim}")
+        if self.lr_reduce_monitor == None:
+            return [optimizer]
         lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode="min",
@@ -723,20 +731,16 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         if type(mask_ratio) is not list:
             mask_ratio = [mask_ratio]
 
-        # dynamically change the context length every 10 steps
-        if self.trainer.global_step % 10 == 0:
+        # dynamically change the context length every 5 steps
+        if self.trainer.global_step % 5 == 0:
             context_length = torch.randint(400, batch["x"].shape[1], (1,)).item()
         else:
             context_length = batch["x"].shape[1]
         expression = batch["x"][:, :context_length]
         gene_pos = batch["genes"][:, :context_length]
-        total_count = batch["depth"][:, :context_length]
+        total_count = batch["depth"]
         clss = batch.get("class", None)
-        if clss is not None:
-            clss = clss[:, :context_length]
         batch_idx = batch.get("dataset", None)
-        if batch_idx is not None:
-            batch_idx = batch_idx[:, :context_length]
 
         total_loss = 0
         losses = {}
@@ -777,8 +781,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 expr = expression
             if i == "TF":
                 mask = self.tf_masker(
-                    shape=gene_pos.shape,
-                    mask_ratio=i,
+                    ids=gene_pos,
+                    mask_ratio=0.3,
                 ).to(gene_pos.device)
             else:
                 mask = simple_masker(
@@ -808,9 +812,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
             cell_embs.append(output["cell_emb"].clone())
             total_loss += tot
-            losses.update(
-                {"mask_" + str(int(i * 100)) + "%_" + k: v for k, v in l.items()}
-            )
+            pct = str(int(i * 100)) + "%_" if i != "TF" else "TF_"
+            losses.update({"mask_" + pct + k: v for k, v in l.items()})
         # TASK 3. denoising
         if do_denoise:
             for i in noise:
@@ -869,7 +872,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # TASK 7. next time point prediction
         if do_next_tp:
             pass
-
         # TASK 4. contrastive cell embedding
         if do_cce:
             loss_cce = 0
@@ -957,7 +959,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             )
             ## Since we want to maximize dissimilarity, we minimize the negative of the average cosine similarity
             ## We subtract from 1 to ensure positive values, and take the mean off-diagonal (i != j)
-            loss_class_emb_diss = cos_sim_matrix.fill_diagonal_(0).mean()
+            loss_class_emb_diss = 1 - cos_sim_matrix.fill_diagonal_(0).mean()
             ## Apply the custom dissimilarity loss to the cell embeddings
             losses.update({"class_emb_sim": loss_class_emb_diss})
             total_loss += self.class_embd_diss_scale * loss_class_emb_diss

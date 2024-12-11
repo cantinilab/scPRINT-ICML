@@ -136,7 +136,7 @@ class Denoiser:
         self.genes = (
             model.pos.cpu().numpy()
             if self.how != "most var"
-            else list(set(model.genes) & set(genelist))
+            else list(set(model.genes) & set(self.genelist))
         )
         tokeep = None
         metrics = None
