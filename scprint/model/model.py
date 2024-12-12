@@ -18,7 +18,7 @@ from torch import Tensor, nn, optim
 
 # from .linear_transformer import FastTransformerEncoderWrapper as FastTransformerEncoder
 from . import decoders, encoders, loss, utils
-from .flash_attn import FlashTransformer
+from simpler_flash import FlashTransformer
 from .loss import grad_reverse
 from .utils import WeightedMasker, simple_masker
 
