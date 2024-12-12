@@ -163,8 +163,6 @@ class Denoiser:
                     ]
                 )
             # reco[true==0] = 0
-            # import pdb
-            # pdb.set_trace()
             # reco[reco!=0] = 2
             # corr_coef = np.corrcoef(
             #    np.vstack([reco[true!=0], noisy[true!=0], true[true!=0]])

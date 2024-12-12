@@ -433,7 +433,7 @@ def default_benchmark(
         "endothelial cell",
     ],
     maxlayers: int = 16,
-    maxgenes: int = 5000,
+    maxgenes: int = 4000,
     batch_size: int = 32,
     maxcells: int = 1024,
 ):

@@ -84,9 +84,10 @@ def subset_fasta(
     weird = 0
     genes_found = set()
     gene_tosubset = set(gene_tosubset)
-    with open(fasta_path, "r") as original_fasta, open(
-        subfasta_path, "w"
-    ) as subset_fasta:
+    with (
+        open(fasta_path, "r") as original_fasta,
+        open(subfasta_path, "w") as subset_fasta,
+    ):
         for record in SeqIO.parse(original_fasta, "fasta"):
             gene_name = (
                 record.description.split(" gene:")[1]
@@ -396,9 +397,6 @@ def seq(
             # Fetch the amino acid sequences of the transcript Ensembl IDs
             df_uniprot = get_uniprot_seqs(UNIPROT_REST_API, trans_ids)
             # Add info_df.loc[ensembl_ID] to df_uniprot by joining on "canonical_transcript" / "gene_name" respectively
-            import pdb
-
-            pdb.set_trace()
             info_df.set_index("canonical_transcript", inplace=True)
 
             df_uniprot.loc[:, "gene_id"] = info_df.loc[

@@ -103,6 +103,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             ValueError: If the expr_emb_style is not one of "continuous", "binned_pos", "cont_pos".
         """
         super().__init__()
+        self.save_hyperparameters()
         # training flags
         self.do_denoise = True
         self.noise = [0.6]
@@ -110,7 +111,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.cce_sim = 0.5
         self.cce_scale = 0.002
         self.do_ecs = False
-        self.ecs_threshold = 0.3
+        self.ecs_threshold = 0.4
         self.ecs_scale = 0.05
         self.do_mvc = False
         self.mvc_scale = 1.0
@@ -132,7 +133,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.fused_adam = False
         self.lr_reduce_patience = 1
         self.lr_reduce_factor = 0.6
-        self.test_every = 1
+        self.test_every = 20
         self.lr_reduce_monitor = "val_loss"
         self.name = ""
         self.lr = lr
@@ -160,32 +161,35 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.transformer = transformer
         self.label_counts = classes
         self.classes = list(classes.keys())
+
+        if cell_emb_style not in ["cls", "avg-pool", "w-pool"]:
+            raise ValueError(f"Unknown cell_emb_style: {cell_emb_style}")
         self.cell_emb_style = cell_emb_style
+
         self.label_decoders = label_decoders
         self.pred_embedding = pred_embedding
-        # compute tensor for mat_labels_hierarchy
-        self.mat_labels_hierarchy = {}
-        self.labels_hierarchy = labels_hierarchy
-        if "strict_loading" in flash_attention_kwargs:
-            flash_attention_kwargs.pop("strict_loading")
-
-        for k, v in labels_hierarchy.items():
-            tens = torch.zeros((len(v), classes[k]))
-            for k2, v2 in v.items():
-                tens[k2 - classes[k], v2] = 1
-            self.mat_labels_hierarchy[k] = tens.to(bool)
+        self.genes = genes
+        self.vocab = {i: n for i, n in enumerate(genes)}
         self.expr_emb_style = expr_emb_style
-
         if self.expr_emb_style not in ["category", "continuous", "none"]:
             raise ValueError(
                 f"expr_emb_style should be one of category, continuous, scaling, "
                 f"got {expr_emb_style}"
             )
-        if cell_emb_style not in ["cls", "avg-pool", "w-pool"]:
-            raise ValueError(f"Unknown cell_emb_style: {cell_emb_style}")
+        self.labels_hierarchy = labels_hierarchy
+        self.hparams["labels_hierarchy"] = self.labels_hierarchy
+        self.hparams["classes"] = self.classes
+        self.hparams["label_decoders"] = self.label_decoders
+        self.hparams["label_counts"] = self.label_counts
+        self.hparams["gene_pos_enc"] = self.gene_pos_enc
+        self.hparams["genes"] = self.genes
 
-        self.genes = genes
-        self.vocab = {i: n for i, n in enumerate(genes)}
+        self.mat_labels_hierarchy = {}
+        for k, v in labels_hierarchy.items():
+            tens = torch.zeros((len(v), classes[k]))
+            for k2, v2 in v.items():
+                tens[k2 - classes[k], v2] = 1
+            self.mat_labels_hierarchy[k] = tens.to(bool)
 
         # encoder
         # gene encoder
@@ -241,6 +245,9 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             d_model, dropout, layers=expr_encoder_layers
         )
 
+        # compute tensor for mat_labels_hierarchy
+        if "strict_loading" in flash_attention_kwargs:
+            flash_attention_kwargs.pop("strict_loading")
         # Transformer
         # Linear
         if transformer == "linear":
@@ -303,7 +310,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         )
         for i, dec in self.cls_decoders.items():
             torch.nn.init.constant_(dec.out_layer.bias, -0.13)
-        self.save_hyperparameters()
 
     def on_load_checkpoint(self, checkpoints):
         for name, clss in self.cls_decoders.items():
@@ -323,16 +329,26 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 self.d_model,
                 n_cls=size,
             )
-        classes = checkpoints["hyper_parameters"]["classes"]
         self.normalization = checkpoints["hyper_parameters"]["normalization"]
-        self.label_decoders = checkpoints["hyper_parameters"]["label_decoders"]
-        self.labels_hierarchy = checkpoints["hyper_parameters"]["labels_hierarchy"]
-        for k, v in self.labels_hierarchy.items():
-            tens = torch.zeros((len(v), classes[k]))
-            for k2, v2 in v.items():
-                tens[k2 - classes[k], v2] = 1
-            self.mat_labels_hierarchy[k] = tens.to(bool)
-
+        if "classes" in checkpoints["hyper_parameters"]:
+            self.classes = checkpoints["hyper_parameters"]["classes"]
+            self.label_counts = checkpoints["hyper_parameters"]["label_counts"]
+            self.label_decoders = checkpoints["hyper_parameters"]["label_decoders"]
+            self.labels_hierarchy = checkpoints["hyper_parameters"]["labels_hierarchy"]
+            for k, v in self.labels_hierarchy.items():
+                tens = torch.zeros((len(v), self.label_counts[k]))
+                for k2, v2 in v.items():
+                    tens[k2 - self.label_counts[k], v2] = 1
+                self.mat_labels_hierarchy[k] = tens.to(bool)
+        if "gene_pos_enc" in checkpoints["hyper_parameters"]:
+            if self.genes != checkpoints["hyper_parameters"]["genes"]:
+                raise ValueError(
+                    "Genes or their ordering have changed in the dataloader compared to last time, the model will likely misbehave!"
+                )
+            if self.gene_pos_enc != checkpoints["hyper_parameters"]["gene_pos_enc"]:
+                print(
+                    "Gene position encoding has changed in the dataloader compared to last time, be careful!"
+                )
         mencoders = {}
         try:
             if self.trainer.datamodule.decoders != self.label_decoders:
@@ -945,7 +961,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             )
             ## Since we want to maximize dissimilarity, we minimize the negative of the average cosine similarity
             ## We subtract from 1 to ensure positive values, and take the mean off-diagonal (i != j)
-            loss_class_emb_diss = cos_sim_matrix.fill_diagonal_(0).mean()
+            loss_class_emb_diss = 1 - cos_sim_matrix.fill_diagonal_(0).mean()
             ## Apply the custom dissimilarity loss to the cell embeddings
             losses.update({"class_emb_sim": loss_class_emb_diss})
             total_loss += self.class_embd_diss_scale * loss_class_emb_diss
@@ -1124,9 +1140,10 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
     def on_test_epoch_end(self):
         print("start test")
-        model_copy = copy.deepcopy(self)
+        if not self.trainer.is_global_zero:
+            return
         name = self.name + "_step" + str(self.global_step)
-        metrics = utils.test(model_copy, name, filedir=FILEDIR)
+        metrics = utils.test(self, name, filedir=FILEDIR)
         print(metrics)
         print("done test")
         self.log_dict(metrics, sync_dist=True, rank_zero_only=True)

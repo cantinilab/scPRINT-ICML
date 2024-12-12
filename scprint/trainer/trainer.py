@@ -21,7 +21,7 @@ class TrainingMode(Callback):
         do_generate: bool = True,
         class_scale: float = 1.5,
         mask_ratio: List[float] = [],  # 0.3
-        test_every: int = 1,
+        test_every: int = 20,
         warmup_duration: int = 500,
         fused_adam: bool = False,
         adv_class_scale: float = 0.1,

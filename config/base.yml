@@ -13,7 +13,7 @@ trainer:
   limit_train_batches: 7000
   limit_val_batches: 2000
   limit_test_batches: 1 # we don't perform tests this way
-  reload_dataloaders_every_n_epochs: 1
+  reload_dataloaders_every_n_epochs: 10
   accumulate_grad_batches: 1
   max_time:
     hours: 71
@@ -21,8 +21,8 @@ trainer:
     - class_path: lightning.pytorch.loggers.WandbLogger
       init_args:
         project: ${project}
-        save_dir: data/log/
-        offline: True
+        save_dir: /pasteur/zeus/projets/p02/ml4ig_hot/Users/jkalfon/ #/data/log/
+        offline: False
   callbacks:
     - class_path: lightning.pytorch.callbacks.StochasticWeightAveraging
       init_args:
@@ -30,7 +30,7 @@ trainer:
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         monitor: val_loss
-        save_top_k: 20
+        save_top_k: 10
         save_last: True
 
     #- class_path: lightning.pytorch.callbacks.LearningRateFinder
@@ -68,7 +68,7 @@ data:
   weight_scaler: 50
   do_gene_pos: ./data/main/biomart_pos.parquet
   add_zero_genes: 0
-  train_oversampling_per_epoch: 0.3
+  train_oversampling_per_epoch: 0.1
   validation_split: 0.02
   test_split: 0.02
   batch_size: 64
