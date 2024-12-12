@@ -542,12 +542,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         )
         # if not provided we will mult by the current expression sum
         depth_mult = expression.sum(1) if depth_mult is None else depth_mult
-        if transformer_output.isnan().any():
-            import pdb
-
-            pdb.set_trace()
-        else:
-            print("no nan")
         if len(get_attention_layer) > 0:
             transformer_output, qkvs = transformer_output
             return (
@@ -1186,6 +1180,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         depth_mult=6,
         keep_output=True,
         max_size_in_mem=100_000,
+        get_gene_emb=False,
     ):
         """
         @see predict_step will save output of predict in multiple self variables
@@ -1214,6 +1209,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 req_depth=depth,
                 get_attention_layer=get_attention_layer,
                 do_class=True,
+                get_gene_emb=get_gene_emb,
             )
             if len(get_attention_layer) > 0:
                 self.attn.add([i[:, :, :2, :] for i in output[1]], gene_pos)
@@ -1227,6 +1223,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 req_depth=depth * depth_mult,
                 get_attention_layer=get_attention_layer,
                 do_class=True,
+                get_gene_emb=get_gene_emb,
             )
             if len(get_attention_layer) > 0:
                 self.attn.add([i[:, :, :2, :] for i in output[1]], gene_pos)
@@ -1239,6 +1236,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 req_depth=depth,
                 do_mvc=False,
                 do_class=False,
+                get_gene_emb=get_gene_emb,
             )
             cell_embs = output["cell_embs"]
             output = self._generate(

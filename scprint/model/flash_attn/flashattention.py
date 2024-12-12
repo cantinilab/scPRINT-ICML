@@ -1259,7 +1259,6 @@ class FlashAttnKVPackedFunc(torch.autograd.Function):
         """
         # Make sure that the last dimension is contiguous
         q, kv = [x if x.stride(-1) == 1 else x.contiguous() for x in [q, kv]]
-        print(q.shape, kv.shape)
         o, lse, ctx.softmax_scale = _flash_attn_forward(
             q,
             kv[:, :, 0],

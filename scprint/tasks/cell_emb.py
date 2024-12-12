@@ -46,6 +46,7 @@ class Embedder:
         dtype: torch.dtype = torch.float16,
         output_expression: str = "none",
         genelist: List[str] = [],
+        get_gene_emb: bool = False,
     ):
         """
         Embedder a class to embed and annotate cells using a model
@@ -78,6 +79,7 @@ class Embedder:
         self.doclass = doclass
         self.output_expression = output_expression
         self.genelist = genelist
+        self.get_gene_emb = get_gene_emb
 
     def __call__(self, model: torch.nn.Module, adata: AnnData, cache=False):
         """
@@ -167,6 +169,7 @@ class Embedder:
                         depth,
                         predict_mode="none",
                         pred_embedding=self.pred_embedding,
+                        get_gene_emb=self.get_gene_emb,
                     )
                     torch.cuda.empty_cache()
             model.log_adata(name="predict_part_" + str(model.counter))
