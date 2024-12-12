@@ -144,6 +144,10 @@ pip install -e GRnnData[dev]
 pip install -e benGRN[dev]
 ```
 
+## Reproducibility 
+
+__To reproduce the paper please use the version `1.6.4` and you will have to git clone the repo to have access to all the pre-training functionalities!__
+
 ## Usage
 
 ### scPRINT's basic commands
