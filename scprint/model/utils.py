@@ -1,6 +1,7 @@
 import gc
 import json
 import math
+import os.path
 from collections import Counter
 from typing import Dict, List, Optional, Union
 
@@ -11,14 +12,18 @@ import scanpy as sc
 import torch
 from anndata import AnnData
 from matplotlib import pyplot as plt
+from scdataloader.utils import translate
 from torch import Tensor
 from torch.distributions import Gamma, Poisson
 
+from .. import utils
 from ..tasks import cell_emb as embbed_task
 from ..tasks import denoise as denoise_task
 from ..tasks import grn as grn_task
 
 # from scprint.tasks import generate
+
+FILEDIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def make_adata(
@@ -280,7 +285,7 @@ def _init_weights(
                 )
 
 
-def downsample_profile(mat: Tensor, dropout: float, method="new"):
+def downsample_profile(mat: Tensor, dropout: float, method="new", randsamp=False):
     """
     This function downsamples the expression profile of a given single cell RNA matrix.
 
@@ -306,6 +311,8 @@ def downsample_profile(mat: Tensor, dropout: float, method="new"):
     # Randomly drop on average N counts to each element of expression using a heavy tail Gaussian distribution
     # here we try to get the scale of the distribution so as to remove the right number of counts from each gene
     # https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02601-5#:~:text=Zero%20measurements%20in%20scRNA%2Dseq,generation%20of%20scRNA%2Dseq%20data.
+    if randsamp:
+        dropout = torch.rand(mat.shape, device=mat.device) * dropout
     if method == "old":
         totcounts = mat.sum(1)
         batch = mat.shape[0]
@@ -368,34 +375,48 @@ def simple_masker(
     return torch.rand(shape) < mask_ratio
 
 
-def weighted_masker(
-    shape: list[int],
-    mask_ratio: float = 0.15,
-    mask_prob: Optional[Union[torch.Tensor, np.ndarray]] = None,  # n_features
-    mask_value: int = 1,
-) -> torch.Tensor:
-    """
-    Randomly mask a batch of data.
+class WeightedMasker:
+    def __init__(
+        self,
+        genes: list[str],
+        TFs: list[str] = utils.fileToList(FILEDIR + "/TFs.txt"),
+        inv_weight: float = 0.2,
+    ):
+        """
+        Randomly mask a batch of data.
 
-    Args:
-        shape (list[int]): The shape of the data.
-        mask_ratio (float): The ratio of genes to mask, default to 0.15.
-        mask_value (int): The value to mask with, default to -1.
-        pad_value (int): The value of padding in the values, will be kept unchanged.
+        Args:
+            genes (list[str]): The list of genes the model might see.
+            TFs (list[str]): The list of TFs the model can drop.
+            inv_weight (float): How likely it is to drop a non TF compared to a TF.
 
-    Returns:
-        torch.Tensor: A tensor of masked data.
-    """
-    mask = []
-    for _ in range(shape[0]):
-        m = np.zeros(shape[1])
-        loc = np.random.choice(
-            a=shape[1], size=int(shape[1] * mask_ratio), replace=False, p=mask_prob
+        Returns:
+            torch.Tensor: A tensor of masked data.
+        """
+        TFs = set(TFs)
+        self.weights = torch.tensor(
+            [1 if gene in TFs else inv_weight for gene in genes]
         )
-        m[loc] = mask_value
-        mask.append(m)
+        self.max_to_drop = (self.weights == inv_weight).sum()
+        self.inv_weight = inv_weight
 
-    return torch.Tensor(np.array(mask)).to(torch.bool)
+    def __call__(self, ids: torch.Tensor, mask_ratio: float = 1.0) -> torch.Tensor:
+        if self.inv_weight == 0:
+            if mask_ratio * ids.shape[1] > self.max_to_drop:
+                raise ValueError("Cannot drop more than max_to_drop")
+        # Create a tensor of probabilities for each position
+        probs = self.weights.expand(ids.shape[0], -1).to(ids.device)
+        ids = ids.to(torch.int64)
+        probs = torch.gather(
+            probs, 1, ids
+        )  # Get probabilities only for the indices in ids
+        probs = probs / probs.sum(1, keepdim=True)
+
+        # Sample from multinomial for each item in batch
+        num_samples = int(ids.shape[1] * mask_ratio)
+        mask = torch.zeros_like(ids, dtype=torch.bool)
+        sampled = torch.multinomial(probs, num_samples, replacement=False)
+        return mask.scatter_(1, sampled, True)
 
 
 def zinb_sample(
@@ -429,41 +450,6 @@ def zinb_sample(
     is_zero = torch.rand_like(samp) <= zi_probs
     samp_ = torch.where(is_zero, torch.zeros_like(samp), samp)
     return samp_
-
-
-def translate(
-    val: Union[str, list, set, dict, Counter], t: str = "cell_type_ontology_term_id"
-):
-    """
-    translate This function translates the given value based on the specified type.
-
-    Args:
-        val (str/list/set/dict/Counter): The value to be translated.
-        t (str, optional): The type of translation to be performed. Defaults to "cell_type_ontology_term_id".
-
-    Returns:
-        dict: A dictionary with the translated values.
-    """
-    if t == "cell_type_ontology_term_id":
-        obj = bt.CellType.filter().df().set_index("ontology_id")
-    elif t == "assay_ontology_term_id":
-        obj = bt.ExperimentalFactor.filter().df().set_index("ontology_id")
-    elif t == "tissue_ontology_term_id":
-        obj = bt.Tissue.filter().df().set_index("ontology_id")
-    elif t == "disease_ontology_term_id":
-        obj = bt.Disease.filter().df().set_index("ontology_id")
-    elif t == "self_reported_ethnicity_ontology_term_id":
-        obj = bt.Ethnicity.filter().df().set_index("ontology_id")
-    else:
-        return None
-    if type(val) is str:
-        if val == "unknown":
-            return {val: val}
-        return {val: obj.loc[val]["name"]}
-    elif type(val) is list or type(val) is set:
-        return {i: obj.loc[i]["name"] if i != "unknown" else i for i in set(val)}
-    elif type(val) is dict or type(val) is Counter:
-        return {obj.loc[k]["name"] if k != "unknown" else k: v for k, v in val.items()}
 
 
 class Attention:

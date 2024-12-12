@@ -35,6 +35,7 @@ class Denoiser:
         predict_depth_mult: int = 4,
         downsample: Optional[float] = None,
         dtype: torch.dtype = torch.float16,
+        genelist: Optional[List[str]] = None,
     ):
         """
         Denoiser class for denoising scRNA-seq data using a scPRINT model
@@ -62,6 +63,7 @@ class Denoiser:
         self.downsample = downsample
         self.precision = precision
         self.dtype = dtype
+        self.genelist = genelist
 
     def __call__(self, model: torch.nn.Module, adata: AnnData):
         """
@@ -92,14 +94,15 @@ class Denoiser:
             sc.pp.highly_variable_genes(
                 adata, flavor="seurat_v3", n_top_genes=self.max_len, span=0.99
             )
-            genelist = adata.var.index[adata.var.highly_variable]
-            print(len(genelist))
+            self.genelist = adata.var.index[adata.var.highly_variable]
+            print(len(self.genelist))
+
         col = Collator(
             organisms=model.organisms,
             valid_genes=model.genes,
             max_len=self.max_len,
             how="some" if self.how == "most var" else self.how,
-            genelist=genelist if self.how == "most var" else [],
+            genelist=self.genelist if self.how != "random expr" else [],
             downsample=self.downsample,
             save_output=True,
         )
@@ -133,7 +136,7 @@ class Denoiser:
         self.genes = (
             model.pos.cpu().numpy()
             if self.how != "most var"
-            else list(set(model.genes) & set(genelist))
+            else list(set(model.genes) & set(self.genelist))
         )
         tokeep = None
         metrics = None

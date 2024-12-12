@@ -1,20 +1,19 @@
 import os
 import urllib.request
 
+import lamindb as ln
 import numpy as np
 import pytest
 import scanpy as sc
 import torch
-from scdataloader import Preprocessor, DataModule
+from lightning.pytorch import Trainer
+from scdataloader import DataModule, Preprocessor
 from scdataloader.utils import populate_my_ontology
 
 from scprint import scPrint
 from scprint.base import NAME
 from scprint.tasks import Denoiser, Embedder, GNInfer
 from scprint.trainer import TrainingMode
-
-import lamindb as ln
-from lightning.pytorch import Trainer
 
 
 def test_base():
