@@ -755,9 +755,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_mvc=do_mvc,
                 do_class=do_cls,
             )
-            output.pop("disp")
-            output.pop("zero_logits")
-            output.pop("mean")
+            if "disp" in output:
+                output.pop("disp")
+            if "zero_logits" in output:
+                output.pop("zero_logits")
+            if "mean" in output:
+                output.pop("mean")
             l, tot = self._compute_loss(
                 output,
                 expression,
@@ -1146,7 +1149,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         metrics = utils.test(self, name, filedir=FILEDIR)
         print(metrics)
         print("done test")
-        self.log_dict(metrics, sync_dist=True, rank_zero_only=True)
+        self.log_dict(metrics, sync_dist=False, rank_zero_only=True)
 
     def on_predict_epoch_start(self):
         """@see pl.LightningModule"""
