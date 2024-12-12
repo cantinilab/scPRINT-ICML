@@ -136,6 +136,7 @@ class Block(nn.Module):
     def forward(
         self,
         hidden_states: Tensor,
+        x_kv: Optional[Tensor] = None,
         residual: Optional[Tensor] = None,
         bias: Optional[Tensor] = None,
         src_mask: Optional[Tensor] = None,
@@ -197,7 +198,11 @@ class Block(nn.Module):
             if mixer_subset is not None:
                 mixer_kwargs["mixer_subset"] = mixer_subset
             hidden_states = self.mixer(
-                hidden_states, return_qkv=return_qkv, bias=bias, **mixer_kwargs
+                hidden_states,
+                x_kv=x_kv,
+                return_qkv=return_qkv,
+                bias=bias,
+                **mixer_kwargs,
             )
             if return_qkv:
                 qkv = hidden_states[1]
@@ -251,9 +256,10 @@ class Block(nn.Module):
             assert residual is None
             mixer_out = self.mixer(
                 hidden_states,
+                x_kv=x_kv,
                 return_qkv=return_qkv,
                 bias=bias,
-                **(mixer_kwargs if mixer_kwargs is not None else {})
+                **(mixer_kwargs if mixer_kwargs is not None else {}),
             )
             if return_qkv:
                 qkv = mixer_out[-1]

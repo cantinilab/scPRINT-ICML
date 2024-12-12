@@ -45,6 +45,8 @@ class Embedder:
         keep_all_cls_pred: bool = False,
         dtype: torch.dtype = torch.float16,
         output_expression: str = "none",
+        genelist: List[str] = [],
+        get_gene_emb: bool = False,
     ):
         """
         Embedder a class to embed and annotate cells using a model
@@ -76,6 +78,8 @@ class Embedder:
         self.dtype = dtype
         self.doclass = doclass
         self.output_expression = output_expression
+        self.genelist = genelist
+        self.get_gene_emb = get_gene_emb
 
     def __call__(self, model: torch.nn.Module, adata: AnnData, cache=False):
         """
@@ -126,7 +130,7 @@ class Embedder:
                 sc.pp.highly_variable_genes(
                     adata, flavor="seurat_v3", n_top_genes=self.max_len
                 )
-                curr_genes = adata.var.index[adata.var.highly_variable]
+                self.genelist = adata.var.index[adata.var.highly_variable]
             adataset = SimpleAnnDataset(
                 adata, obs_to_output=["organism_ontology_term_id"]
             )
@@ -136,7 +140,7 @@ class Embedder:
                 how=self.how if self.how != "most var" else "some",
                 max_len=self.max_len,
                 add_zero_genes=self.add_zero_genes,
-                genelist=[] if self.how != "most var" else curr_genes,
+                genelist=self.genelist if self.how in ["most var", "some"] else [],
             )
             dataloader = DataLoader(
                 adataset,
@@ -165,6 +169,7 @@ class Embedder:
                         depth,
                         predict_mode="none",
                         pred_embedding=self.pred_embedding,
+                        get_gene_emb=self.get_gene_emb,
                     )
                     torch.cuda.empty_cache()
             model.log_adata(name="predict_part_" + str(model.counter))

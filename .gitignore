@@ -187,3 +187,4 @@ clf_omni.pkl
 metrics__*.json
 config/torm.txt
 torm.json
+notebooks/additional/figures/

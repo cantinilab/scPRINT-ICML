@@ -162,11 +162,16 @@ class FlashCrossAttention(nn.Module):
                 of the sequences in the batch, used to index into kv.
             max_seqlen_k: int. Maximum sequence length in the batch of k and v.
         """
+        # Add debug prints
         assert q.dtype in [torch.float16, torch.bfloat16]
         assert q.is_cuda and kv.is_cuda
         causal = self.causal if causal is None else causal
         batch_size, _ = q.shape[0], q.shape[1]
         assert kv.shape[0] == batch_size and kv.shape[4] == q.shape[3]
+        # Add GQA support similar to CrossAttention
+        if kv.shape[3] != q.shape[2]:  # MQA/GQA
+            kv = repeat(kv, "... hkv d -> ... (hkv g) d", g=q.shape[2] // kv.shape[3])
+
         return flash_attn_kvpacked_func(
             q,
             kv,
