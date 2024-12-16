@@ -11,6 +11,8 @@ from lightning.pytorch.cli import LightningCLI, _get_short_description
 from scprint.tasks import Denoiser, Embedder, GNInfer
 
 from .trainer import TrainingMode
+from lightning.pytorch.strategies import DDPStrategy
+from lightning.pytorch.trainer import Trainer
 
 TASKS = [("embed", Embedder), ("gninfer", GNInfer), ("denoise", Denoiser)]
 
@@ -28,7 +30,7 @@ class MyCLI(LightningCLI):
         parser.set_defaults(
             {
                 "scprint_early_stopping.monitor": "val_loss",
-                "scprint_early_stopping.patience": 3,
+                "scprint_early_stopping.patience": 5,
             }
         )
         parser.add_lightning_class_args(
@@ -258,3 +260,36 @@ class MyCLI(LightningCLI):
             if "set_float32_matmul_precision" in k:
                 if v:
                     torch.set_float32_matmul_precision("medium")
+        if self.config["fit"]["trainer"]["strategy"] == "ddp":
+            import os
+
+            os.environ["NCCL_TIMEOUT"] = "100"  # 3 hours in seconds
+            os.environ["NCCL_ASYNC_ERROR_HANDLING"] = "1"
+            os.environ["TORCH_DISTRIBUTED_TIMEOUT"] = "100"  # 3 hours in seconds
+            os.environ["PL_TRAINER_STRATEGY_TIMEOUT"] = "100"
+
+            print("setting global pytorch distributed timeout to 10000s")
+
+    def instantiate_trainer(self, **kwargs) -> Trainer:
+        """Override to customize trainer instantiation"""
+        # Modify strategy if it's DDP
+        if self.config["fit"]["trainer"]["strategy"] in [
+            "ddp",
+            "ddp_find_unused_parameters_true",
+        ]:
+            # Create DDPStrategy with custom timeout
+            from datetime import timedelta
+
+            strategy = DDPStrategy(
+                timeout=timedelta(seconds=100),  # 3 hours
+                find_unused_parameters=False,
+            )
+            # Update the config
+            print("updating the config")
+            self.config["fit"]["trainer"]["strategy"] = strategy
+        import pdb
+
+        pdb.set_trace()
+        trainer = super().instantiate_trainer(**kwargs)
+        # Call parent method to create trainer
+        return trainer

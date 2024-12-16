@@ -162,13 +162,42 @@ def masked_relative_error(
     return loss.mean()
 
 
-def similarity(x: Tensor, y: Tensor, temp: float) -> Tensor:
+def contrastive_loss(x: Tensor, y: Tensor, temperature: float = 0.1) -> Tensor:
     """
-    Dot product or cosine similarity
+    Computes NT-Xent loss (InfoNCE) between two sets of vectors.
+
+    Args:
+        x: Tensor of shape [batch_size, feature_dim]
+        y: Tensor of shape [batch_size, feature_dim]
+        temperature: Temperature parameter to scale the similarities.
+            Lower values make the model more confident/selective.
+            Typical values are between 0.1 and 0.5.
+
+    Returns:
+        Tensor: NT-Xent loss value
+
+    Note:
+        - Assumes x[i] and y[i] are positive pairs
+        - All other combinations are considered negative pairs
+        - Uses cosine similarity scaled by temperature
     """
-    res = F.cosine_similarity(x.unsqueeze(1), y.unsqueeze(0)) / temp
-    labels = torch.arange(res.size(0)).long().to(device=res.device)
-    return F.cross_entropy(res, labels)
+    # Check input dimensions
+    assert x.shape == y.shape, "Input tensors must have the same shape"
+    batch_size = x.shape[0]
+
+    # Compute cosine similarity matrix
+    # x_unsqueeze: [batch_size, 1, feature_dim]
+    # y_unsqueeze: [1, batch_size, feature_dim]
+    # -> similarities: [batch_size, batch_size]
+    similarities = (
+        F.cosine_similarity(x.unsqueeze(1), y.unsqueeze(0), dim=2) / temperature
+    )
+
+    # The positive pairs are on the diagonal
+    labels = torch.arange(batch_size, device=x.device)
+
+    # Cross entropy loss
+    return F.cross_entropy(similarities, labels)
 
 
 def ecs(cell_emb: Tensor, ecs_threshold: float = 0.5) -> Tensor:
@@ -336,3 +365,77 @@ def grad_reverse(x: Tensor, lambd: float = 1.0) -> Tensor:
         Tensor: The input tensor with its gradient reversed during the backward pass.
     """
     return GradReverse.apply(x, lambd)
+
+
+def compute_embedding_independence_loss(cell_embs, min_batch_size=32):
+    """
+    Compute independence loss between different embeddings using both
+    batch-wise decorrelation (when batch is large enough) and
+    within-sample dissimilarity
+
+    Args:
+        cell_embs: tensor of shape [batch_size, num_embeddings, embedding_dim]
+        min_batch_size: minimum batch size for using correlation-based loss
+    """
+    batch_size, num_embeddings, emb_dim = cell_embs.shape
+
+    if batch_size >= min_batch_size:
+        # Batch is large enough - use correlation-based loss
+        # Center the embeddings
+        cell_embs_centered = cell_embs - cell_embs.mean(dim=0, keepdim=True)
+
+        # Compute correlation matrix between embeddings
+        correlation_matrix = torch.bmm(
+            cell_embs_centered.transpose(0, 1),
+            cell_embs_centered.transpose(0, 1).transpose(1, 2),
+        ) / (batch_size - 1)
+
+        # Normalize
+        norms = torch.sqrt(torch.diagonal(correlation_matrix, dim1=1, dim2=2) + 1e-8)
+        correlation_matrix = correlation_matrix / (
+            norms.unsqueeze(-1) * norms.unsqueeze(-2) + 1e-8
+        )
+
+        # Zero out diagonal
+        mask = 1 - torch.eye(num_embeddings, device=correlation_matrix.device)
+        correlation_loss = ((correlation_matrix * mask) ** 2).sum() / (
+            num_embeddings * (num_embeddings - 1)
+        )
+
+        # Combine with within-sample loss
+        within_sample_loss = compute_within_sample_loss(cell_embs)
+
+        return 0.7 * correlation_loss + 0.3 * within_sample_loss
+
+    else:
+        # Batch too small - use only within-sample dissimilarity
+        return compute_within_sample_loss(cell_embs)
+
+
+def compute_within_sample_loss(cell_embs):
+    """
+    Compute dissimilarity between embeddings within each sample
+    using a combination of cosine and L2 distance
+    """
+    batch_size, num_embeddings, emb_dim = cell_embs.shape
+
+    # Normalize embeddings for cosine similarity
+    cell_embs_norm = F.normalize(cell_embs, p=2, dim=-1)
+
+    # Compute pairwise cosine similarities
+    cos_sim = torch.bmm(cell_embs_norm, cell_embs_norm.transpose(1, 2))
+
+    # Compute pairwise L2 distances (normalized by embedding dimension)
+    l2_dist = torch.cdist(cell_embs, cell_embs, p=2) / np.sqrt(emb_dim)
+
+    # Create mask for pairs (excluding self-similarity)
+    mask = 1 - torch.eye(num_embeddings, device=cos_sim.device)
+    mask = mask.unsqueeze(0).expand(batch_size, -1, -1)
+
+    # Combine losses:
+    # - High cosine similarity should be penalized
+    # - Small L2 distance should be penalized
+    cos_loss = (cos_sim * mask).pow(2).mean()
+    l2_loss = 1.0 / (l2_dist * mask + 1e-8).mean()
+
+    return 0.5 * cos_loss + 0.5 * l2_loss

@@ -9,10 +9,10 @@ class TrainingMode(Callback):
         do_denoise: bool = True,
         noise: List[float] = [0.6],
         do_cce: bool = False,
-        cce_sim: float = 0.5,  # .6
-        cce_scale: float = 0.002,  # .01
+        cce_temp: float = 0.2,  # .6
+        cce_scale: float = 0.005,  # .01
         do_ecs: bool = False,
-        ecs_threshold: float = 0.3,
+        ecs_threshold: float = 0.4,
         ecs_scale: float = 0.05,  # .1
         do_mvc: bool = False,
         mvc_scale: float = 1.0,
@@ -20,7 +20,7 @@ class TrainingMode(Callback):
         do_next_tp: bool = False,
         do_generate: bool = True,
         class_scale: float = 1.5,
-        mask_ratio: List[float] = [],  # 0.3
+        mask_ratio: List[float | str] = [],  # 0.3
         test_every: int = 20,
         warmup_duration: int = 500,
         fused_adam: bool = False,
@@ -46,7 +46,7 @@ class TrainingMode(Callback):
             do_denoise (bool): Whether to apply denoising during training. Defaults to True.
             noise (List[float]): List of noise levels to apply if denoising is enabled. Defaults to [0.6], meaning only one forward path with 60% of the counts being dropped will happen.
             do_cce (bool): Whether to apply the Contrastive Cell Embedding from scGPT during training. Defaults to False.
-            cce_sim (float): Similarity threshold for CCE. Defaults to 0.5.
+            cce_temp (float): Similarity threshold for CCE. Defaults to 0.5.
             cce_scale (float): Scaling factor for CCE loss. Defaults to 0.002.
             do_ecs (bool): Whether to apply the Elastic Cell Similarity loss from scGPT during training. Defaults to False.
             ecs_threshold (float): Threshold for ECS. Defaults to 0.3.
@@ -76,7 +76,7 @@ class TrainingMode(Callback):
         self.do_denoise = do_denoise
         self.noise = noise
         self.do_cce = do_cce
-        self.cce_sim = cce_sim
+        self.cce_temp = cce_temp
         self.cce_scale = cce_scale
         self.do_ecs = do_ecs
         self.ecs_threshold = ecs_threshold
@@ -110,7 +110,7 @@ class TrainingMode(Callback):
             f"do_denoise={self.do_denoise}, "
             f"noise={self.noise}, "
             f"do_cce={self.do_cce}, "
-            f"cce_sim={self.cce_sim}, "
+            f"cce_temp={self.cce_temp}, "
             f"cce_scale={self.cce_scale}, "
             f"do_ecs={self.do_ecs}, "
             f"ecs_threshold={self.ecs_threshold}, "
@@ -143,7 +143,7 @@ class TrainingMode(Callback):
         model.do_denoise = self.do_denoise
         model.noise = self.noise
         model.do_cce = self.do_cce
-        model.cce_sim = self.cce_sim
+        model.cce_temp = self.cce_temp
         model.cce_scale = self.cce_scale
         model.do_ecs = self.do_ecs
         model.ecs_threshold = self.ecs_threshold

@@ -1,4 +1,4 @@
-project: scprint_scale
+project: scprint_v2
 seed_everything: 42
 ckpt_path: null
 set_float32_matmul_precision: True
@@ -7,13 +7,12 @@ log_freq: 200
 log_graph: True
 trainer:
   precision: 16-mixed
-  # profiler: simple
-  gradient_clip_val: 100
+  gradient_clip_val: 40
   log_every_n_steps: 100
-  limit_train_batches: 20000
-  limit_val_batches: 6000
+  limit_train_batches: 30000
+  limit_val_batches: 4000
   limit_test_batches: 1 # we don't perform tests this way
-  reload_dataloaders_every_n_epochs: 5
+  reload_dataloaders_every_n_epochs: 10
   accumulate_grad_batches: 1
   max_time:
     hours: 71
@@ -32,19 +31,19 @@ trainer:
         monitor: val_loss
         save_top_k: 10
         save_last: True
+scprint_training:
+  run_full_forward: True
+  noise: [0.6]
+  do_ecs: True
+  do_cce: True
+  mask_ratio: ["TF"]
 
-    #- class_path: lightning.pytorch.callbacks.LearningRateFinder
-    #init_args:
-    #  mode: exponential
-  #plugins:
-  #  - class_path: lightning.pytorch.plugins.environments.SLURMEnvironment
-  #    requeue_signal: signal.SIGHUP
 model:
   dropout: 0.1
+  num_heads_kv: 2
   transformer: flash
   mvc_decoder: inner product
   residual_in_fp32: True
-  num_heads_kv: null
   fused_dropout_add_ln: False
   prenorm: True
   fused_mlp: False
@@ -53,52 +52,49 @@ model:
   freeze_embeddings: True
   pred_embedding:
     - cell_type_ontology_term_id
-    - disease_ontology_term_id
-    - self_reported_ethnicity_ontology_term_id
-    - sex_ontology_term_id
 data:
   organisms:
     - NCBITaxon:9606
     - NCBITaxon:10090
   gene_position_tolerance: 10_000
   gene_embeddings: ./data/main/gene_embeddings.parquet
-  collection_name: all no zhang13M #preprocessed dataset
+  collection_name: scPRINT-V2 full
   how: random expr
-  max_len: 2200
-  weight_scaler: 100
+  max_len: 3200
+  metacell_mode: 0.2
+
+  weight_scaler: 200
   do_gene_pos: ./data/main/biomart_pos.parquet
   add_zero_genes: 0
-  train_oversampling_per_epoch: 0.2
+  train_oversampling_per_epoch: 0.3
   validation_split: 0.05
-  test_split: 0.05
-  batch_size: 64
-  num_workers: 12
-  # TODO: drop tissue & dev stage until part or is taken in account
+  test_split: 0.02
+  batch_size: 32
+  num_workers: 22
   hierarchical_clss:
     - cell_type_ontology_term_id
-    # - tissue_ontology_term_id
+    - tissue_ontology_term_id
     - disease_ontology_term_id
-    # - development_stage_ontology_term_id
+    - age_group
     - assay_ontology_term_id
     - self_reported_ethnicity_ontology_term_id
   clss_to_weight:
-    - cell_type_ontology_term_id
-    # - tissue_ontology_term_id
+    - clust_cell_type
+    - tissue_ontology_term_id
     - disease_ontology_term_id
-    # - development_stage_ontology_term_id
+    - age_group
     - assay_ontology_term_id
     - self_reported_ethnicity_ontology_term_id
     - sex_ontology_term_id
     - organism_ontology_term_id
-    # - cell_culture
-    # - nnz
+    - cell_culture
+    - nnz
   clss_to_predict:
     - cell_type_ontology_term_id
-    # - tissue_ontology_term_id
+    - tissue_ontology_term_id
     - disease_ontology_term_id
-    # - development_stage_ontology_term_id
+    - age_group
     - assay_ontology_term_id
     - self_reported_ethnicity_ontology_term_id
     - sex_ontology_term_id
     - organism_ontology_term_id
-    # - cell_culture

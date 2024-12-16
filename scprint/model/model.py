@@ -22,6 +22,9 @@ from simpler_flash import FlashTransformer
 from .loss import grad_reverse
 from .utils import WeightedMasker, simple_masker
 
+import torch.distributed
+import datetime
+
 FILEDIR = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -108,8 +111,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.do_denoise = True
         self.noise = [0.6]
         self.do_cce = False
-        self.cce_sim = 0.5
-        self.cce_scale = 0.002
+        self.cce_temp = 0.2
+        self.cce_scale = 0.005
         self.do_ecs = False
         self.ecs_threshold = 0.4
         self.ecs_scale = 0.05
@@ -299,6 +302,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             self.mvc_decoder = decoders.MVCDecoder(
                 d_model,
                 arch_style=mvc_decoder,
+                zinb=zinb,
             )
         else:
             self.mvc_decoder = None
@@ -330,6 +334,9 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 self.d_model,
                 n_cls=size,
             )
+        # if len(checkpoints["state_dict"]["pos_encoder.pe"].shape) == 3:
+        #    self.pos_encoder.pe = checkpoints["state_dict"]["pos_encoder.pe"].squeeze(1)
+
         self.normalization = checkpoints["hyper_parameters"]["normalization"]
         if "classes" in checkpoints["hyper_parameters"]:
             self.classes = checkpoints["hyper_parameters"]["classes"]
@@ -659,6 +666,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
     def on_fit_start(self):
         """@see pl.LightningModule"""
+        print("on_fit_start")
         if type(self.transformer) is FlashTransformer:
             for encoder_layers in self.transformer.blocks:
                 encoder_layers.set_seq_parallel(True)
@@ -685,7 +693,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             noise=self.noise,
             do_next_tp=self.do_next_tp,
             do_cce=self.do_cce,
-            cce_sim=self.cce_sim,
+            cce_temp=self.cce_temp,
             do_ecs=self.do_ecs,
             do_mvc=self.do_mvc,
             do_adv_cls=self.do_adv_cls,
@@ -706,7 +714,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         noise: list[float] = [],
         do_next_tp: bool = False,
         do_cce: bool = False,
-        cce_sim: float = 0.5,
+        cce_temp: float = 0.5,
         do_ecs: bool = False,
         do_mvc: bool = False,
         do_adv_cls: bool = False,
@@ -729,7 +737,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             noise (list[float], optional): A list of noise levels to be used in denoising. Defaults to [].
             do_next_tp (bool, optional): A flag to indicate whether to perform next time point prediction. Defaults to False.
             do_cce (bool, optional): A flag to indicate whether to perform cross-categorical entropy. Defaults to False.
-            cce_sim (float, optional): The similarity threshold for cross-categorical entropy. Defaults to 0.5.
+            cce_temp (float, optional): The similarity threshold for cross-categorical entropy. Defaults to 0.5.
             do_ecs (bool, optional): A flag to indicate whether to perform elastic cell similarity. Defaults to False.
             do_mvc (bool, optional): A flag to indicate whether to perform multi-view coding. Defaults to False.
             do_adv_cls (bool, optional): A flag to indicate whether to perform adversarial classification. Defaults to False.
@@ -889,15 +897,17 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # TASK 4. contrastive cell embedding
         if do_cce:
             loss_cce = 0
+            n_pairs = 0
             for i, cell_emb1 in enumerate(cell_embs[:-1]):
                 for cell_emb2 in cell_embs[(i + 1) :]:
-                    loss_cce += loss.similarity(
-                        cell_emb1, cell_emb2, cce_sim
+                    loss_cce += loss.contrastive_loss(
+                        cell_emb1, cell_emb2, cce_temp
                     )  # (nlabels, minibatch, minibatch)
-            fact = factorial(len(cell_embs))
-            total_loss += loss_cce * self.cce_scale / fact
+                    n_pairs += 1
+            avg_loss_cce = loss_cce / max(n_pairs, 1)
+            total_loss += avg_loss_cce * self.cce_scale
             # TASK 3b. contrastive graph embedding
-            losses.update({"cce": loss_cce / fact})
+            losses.update({"cce": avg_loss_cce})
 
         # TASK 8. KO profile prediction
         # if we have that information
@@ -972,21 +982,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # TASK 2. predict classes
         if len(self.classes) > 0:
             ## Calculate pairwise cosine similarity for the embeddings
-            cos_sim_matrix = (
-                torch.nn.functional.cosine_similarity(
-                    output["cell_embs"].unsqueeze(2),
-                    output["cell_embs"].unsqueeze(1),
-                    dim=3,
-                )
-                .abs()
-                .mean(0)
+            loss_emb_indep = loss.compute_embedding_independence_loss(
+                output["cell_embs"]
             )
-            ## Since we want to maximize dissimilarity, we minimize the negative of the average cosine similarity
-            ## We subtract from 1 to ensure positive values, and take the mean off-diagonal (i != j)
-            loss_class_emb_diss = 1 - cos_sim_matrix.fill_diagonal_(0).mean()
-            ## Apply the custom dissimilarity loss to the cell embeddings
-            losses.update({"class_emb_sim": loss_class_emb_diss})
-            total_loss += self.class_embd_diss_scale * loss_class_emb_diss
+            losses.update({"emb_independence": loss_emb_indep})
+            total_loss += self.class_embd_diss_scale * loss_emb_indep
+
             ## compute class loss
             loss_cls = 0
             loss_adv_cls = 0
@@ -1036,11 +1037,18 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # (just use a novel class, cell state and predict if cell death or not from it)
         # add large timepoint and set the KO gene to a KO embedding instead of expression embedding
         # TODO: try to require the gene id to still be predictable (with weight tying)
-        if "mvc_disp" in output:
+        if "mvc_zero_logits" in output:
             loss_expr_mvc = loss.zinb(
                 theta=output["mvc_disp"],
                 pi=output["mvc_zero_logits"],
                 mu=output["mvc_mean"],
+                target=expression,
+            )
+            total_loss += loss_expr_mvc * self.mvc_scale
+            losses.update({"expr_mvc": loss_expr_mvc})
+        elif "mvc_mean" in output:
+            loss_expr_mvc = loss.mse(
+                input=output["mvc_mean"],
                 target=expression,
             )
             total_loss += loss_expr_mvc * self.mvc_scale
@@ -1096,7 +1104,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             noise=self.noise,
             do_next_tp=self.do_next_tp,
             do_cce=self.do_cce,
-            cce_sim=self.cce_sim,
+            cce_temp=self.cce_temp,
             do_ecs=self.do_ecs,
             do_mvc=self.do_mvc,
             do_adv_cls=self.do_adv_cls,
@@ -1143,32 +1151,44 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             else None
         )
         self.pos = self.all_gather(self.pos).view(-1, self.pos.shape[-1])
-        if not self.trainer.is_global_zero:
-            # print("you are not on the main node. cancelling logging step")
-            return
         if self.trainer.state.stage != "sanity_check":
-            sch = self.lr_schedulers()
-            sch.step(self.trainer.callback_metrics["val_loss"])
-            # run the test function on specific dataset
-            self.log_adata(
-                gtclass=self.info, name="validation_part_" + str(self.counter)
-            )
-            if (self.current_epoch + 1) % self.test_every == 0:
-                self.on_test_epoch_end()
+            if not self.trainer.is_global_zero:
+                sch = self.lr_schedulers()
+                sch.step(self.trainer.callback_metrics["val_loss"])
+                # run the test function on specific dataset
+                self.log_adata(
+                    gtclass=self.info, name="validation_part_" + str(self.counter)
+                )
+                if (self.current_epoch + 1) % self.test_every == 0:
+                    self.on_test_epoch_end()
+            # Synchronize all processes with a timeout
+            if torch.distributed.is_initialized():
+                # Set a timeout that's longer than your test typically takes
+                # Write rank to file for debugging
+                rank = torch.distributed.get_rank()
+                with open(f"rank_{rank}.txt", "a") as f:
+                    f.write(f"Rank {rank} completed test epoch\n")
+                torch.distributed.barrier()
 
     def test_step(self, *args, **kwargs):
         print("step")
         pass
 
     def on_test_epoch_end(self):
-        print("start test")
-        if not self.trainer.is_global_zero:
-            return
+        # Run the test only on global rank 0
         name = self.name + "_step" + str(self.global_step)
-        metrics = utils.test(self, name, filedir=FILEDIR)
-        print(metrics)
-        print("done test")
-        self.log_dict(metrics, sync_dist=False, rank_zero_only=True)
+        try:
+            metrics = utils.test(self, name, filedir=FILEDIR)
+            print(metrics)
+            print("done test")
+            self.log_dict(metrics, sync_dist=False, rank_zero_only=True)
+        except Exception as e:
+            import traceback
+
+            print(f"Error during test: {e}")
+            print("Full traceback:")
+            print(traceback.format_exc())
+            print("Skipping test metrics logging")
 
     def on_predict_epoch_start(self):
         """@see pl.LightningModule"""
