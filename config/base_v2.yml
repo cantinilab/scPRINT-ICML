@@ -7,21 +7,20 @@ log_freq: 200
 log_graph: True
 trainer:
   precision: 16-mixed
+  strategy: ddp_find_unused_parameters_true
   gradient_clip_val: 40
   log_every_n_steps: 100
-  limit_train_batches: 30000
+  limit_train_batches: 20000
   limit_val_batches: 4000
   limit_test_batches: 1 # we don't perform tests this way
-  reload_dataloaders_every_n_epochs: 10
+  reload_dataloaders_every_n_epochs: 5
   accumulate_grad_batches: 1
-  max_time:
-    hours: 71
   logger:
     - class_path: lightning.pytorch.loggers.WandbLogger
       init_args:
         project: ${project}
         save_dir: /pasteur/zeus/projets/p02/ml4ig_hot/Users/jkalfon/ #/data/log/
-        offline: True
+        offline: False
   callbacks:
     - class_path: lightning.pytorch.callbacks.StochasticWeightAveraging
       init_args:
@@ -62,15 +61,14 @@ data:
   how: random expr
   max_len: 3200
   metacell_mode: 0.2
-
   weight_scaler: 200
   do_gene_pos: ./data/main/biomart_pos.parquet
   add_zero_genes: 0
-  train_oversampling_per_epoch: 0.3
+  train_oversampling_per_epoch: 0.15
   validation_split: 0.05
   test_split: 0.02
   batch_size: 32
-  num_workers: 22
+  num_workers: 16
   hierarchical_clss:
     - cell_type_ontology_term_id
     - tissue_ontology_term_id

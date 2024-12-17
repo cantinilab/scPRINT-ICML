@@ -10,7 +10,7 @@ class TrainingMode(Callback):
         noise: List[float] = [0.6],
         do_cce: bool = False,
         cce_temp: float = 0.2,  # .6
-        cce_scale: float = 0.005,  # .01
+        cce_scale: float = 0.05,  # .01
         do_ecs: bool = False,
         ecs_threshold: float = 0.4,
         ecs_scale: float = 0.05,  # .1
@@ -31,6 +31,7 @@ class TrainingMode(Callback):
         do_cls: bool = True,
         do_adv_batch: bool = False,
         run_full_forward: bool = False,
+        class_embd_diss_scale: float = 0.1,
         lr: float = 0.001,
         optim: str = "adamW",
         weight_decay: float = 0.01,
@@ -71,6 +72,7 @@ class TrainingMode(Callback):
             weight_decay (float): Weight decay to apply during optimization. Defaults to 0.01.
             name (str): Name of the training mode. Defaults to an empty string. should be an ID for the model
             test_every (int): Number of epochs between testing. Defaults to 1.
+            class_embd_diss_scale (float): Scaling factor for the class embedding dissimilarity loss. Defaults to 0.1.
         """
         super().__init__()
         self.do_denoise = do_denoise
@@ -103,6 +105,7 @@ class TrainingMode(Callback):
         self.run_full_forward = run_full_forward
         self.name = name
         self.test_every = test_every
+        self.class_embd_diss_scale = class_embd_diss_scale
 
     def __repr__(self):
         return (
@@ -135,7 +138,8 @@ class TrainingMode(Callback):
             f"do_adv_batch={self.do_adv_batch}, "
             f"run_full_forward={self.run_full_forward}), "
             f"name={self.name}, "
-            f"test_every={self.test_every})"
+            f"test_every={self.test_every}, "
+            f"class_embd_diss_scale={self.class_embd_diss_scale})"
         )
 
     def setup(self, trainer, model, stage=None):
@@ -170,4 +174,5 @@ class TrainingMode(Callback):
         model.weight_decay = self.weight_decay
         model.name = self.name
         model.test_every = self.test_every
+        model.class_embd_diss_scale = self.class_embd_diss_scale
         # model.configure_optimizers()

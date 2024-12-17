@@ -187,13 +187,14 @@ def make_adata(
                 int(len(color) / 2), 2, figsize=(24, len(color) * 4)
             )
             plt.subplots_adjust(wspace=1)
-            for i, col in enumerate(color):
-                sc.pl.umap(
-                    adata,
-                    color=col,
-                    ax=axs[i // 2, i % 2],
-                    show=False,
-                )
+            if len(color) > 2:
+                for i, col in enumerate(color):
+                    sc.pl.umap(
+                        adata,
+                        color=col,
+                        ax=axs[i // 2, i % 2],
+                        show=False,
+                    )
                 acc = ""
                 if "_pred_" in col and col.split("conv_")[-1] in accuracy:
                     acc = " (accuracy: {:.2f})".format(accuracy[col.split("conv_")[-1]])
@@ -202,6 +203,22 @@ def make_adata(
                     axs[i // 2, i % 2].legend(fontsize="x-small")
                 axs[i // 2, i % 2].set_xlabel("UMAP1")
                 axs[i // 2, i % 2].set_ylabel("UMAP2")
+            else:
+                for i, col in enumerate(color):
+                    sc.pl.umap(
+                        adata,
+                        color=col,
+                        ax=axs[i % 2],
+                        show=False,
+                    )
+                acc = ""
+                if "_pred_" in col and col.split("conv_")[-1] in accuracy:
+                    acc = " (accuracy: {:.2f})".format(accuracy[col.split("conv_")[-1]])
+                axs[i % 2].set_title(col + " UMAP" + acc)
+                if "cell_type" in col:
+                    axs[i % 2].legend(fontsize="x-small")
+                axs[i % 2].set_xlabel("UMAP1")
+                axs[i % 2].set_ylabel("UMAP2")
         else:
             color = [
                 (
@@ -211,20 +228,25 @@ def make_adata(
                 )
                 for i in labels
             ]
-            fig, axs = plt.subplots(len(color), 1, figsize=(16, len(color) * 8))
-            for i, col in enumerate(color):
-                sc.pl.umap(
-                    adata,
-                    color=col,
-                    ax=axs[i],
-                    show=False,
-                )
-                acc = ""
-                if "_pred_" in col and col.split("conv_")[-1] in accuracy:
-                    acc = " (accuracy: {:.2f})".format(accuracy[col.split("conv_")[-1]])
-                axs[i].set_title(col + " UMAP" + acc)
-                axs[i].set_xlabel("UMAP1")
-                axs[i].set_ylabel("UMAP2")
+            if len(color) > 1:
+                fig, axs = plt.subplots(len(color), 1, figsize=(16, len(color) * 8))
+                for i, col in enumerate(color):
+                    sc.pl.umap(
+                        adata,
+                        color=col,
+                        ax=axs[i],
+                        show=False,
+                    )
+                    acc = ""
+                    if "_pred_" in col and col.split("conv_")[-1] in accuracy:
+                        acc = " (accuracy: {:.2f})".format(
+                            accuracy[col.split("conv_")[-1]]
+                        )
+                    axs[i].set_title(col + " UMAP" + acc)
+                    axs[i].set_xlabel("UMAP1")
+                    axs[i].set_ylabel("UMAP2")
+            else:
+                fig = sc.pl.umap(adata, color=color, show=False, return_fig=True)
         plt.show()
     else:
         fig = None
@@ -559,7 +581,9 @@ class Attention:
             return self.data
 
 
-def test(model: torch.nn.Module, name: str, filedir: str) -> None:
+def test(
+    model: torch.nn.Module, name: str, filedir: str, do_class: bool = True
+) -> None:
     """
     Test the given model on the full set of benchmarks and save the results to JSON files.
 
@@ -573,7 +597,7 @@ def test(model: torch.nn.Module, name: str, filedir: str) -> None:
     """
     metrics = {}
     res = embbed_task.default_benchmark(
-        model, default_dataset="lung", do_class=True, coarse=False
+        model, default_dataset="lung", do_class=do_class, coarse=False
     )
     f = open("metrics_" + name + ".json", "a")
     f.write(json.dumps({"embed_lung": res}, indent=4))
@@ -583,12 +607,14 @@ def test(model: torch.nn.Module, name: str, filedir: str) -> None:
             "emb_lung/scib": float(res["scib"]["Total"]),
             "emb_lung/ct_class": float(
                 res["classif"]["cell_type_ontology_term_id"]["accuracy"]
+                if do_class
+                else 0
             ),
         }
     )
     print(metrics)
     res = embbed_task.default_benchmark(
-        model, default_dataset="pancreas", do_class=True, coarse=False
+        model, default_dataset="pancreas", do_class=do_class, coarse=False
     )
     f = open("metrics_" + name + ".json", "a")
     f.write(json.dumps({"embed_panc": res}, indent=4))
@@ -598,6 +624,8 @@ def test(model: torch.nn.Module, name: str, filedir: str) -> None:
             "emb_panc/scib": float(res["scib"]["Total"]),
             "emb_panc/ct_class": float(
                 res["classif"]["cell_type_ontology_term_id"]["accuracy"]
+                if do_class
+                else 0
             ),
         }
     )

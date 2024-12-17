@@ -114,9 +114,9 @@ class MVCDecoder(nn.Module):
         elif arch_style == "concat query":
             self.gene2query = nn.Linear(d_model, d_model)
             self.query_activation = query_activation()
-            self.fc1 = nn.Linear(d_model * (1 + tot_labels), d_model / 2)
+            self.fc1 = nn.Linear(d_model * (1 + tot_labels), d_model // 2)
             self.hidden_activation = hidden_activation()
-            self.fc2 = nn.Linear(d_model / 2, (3 if zinb else 1))
+            self.fc2 = nn.Linear(d_model // 2, (3 if zinb else 1))
         elif arch_style == "sum query":
             self.gene2query = nn.Linear(d_model, d_model)
             self.query_activation = query_activation()

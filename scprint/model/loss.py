@@ -1,10 +1,14 @@
+import math
 from typing import Dict, Optional
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch.autograd import Function
 from torch.distributions import NegativeBinomial
+# import ot
+# from ot.gromov import gromov_wasserstein, fused_gromov_wasserstein
 
 
 def mse(input: Tensor, target: Tensor) -> Tensor:
@@ -349,7 +353,7 @@ class GradReverse(Function):
         return x.view_as(x)
 
     @staticmethod
-    def backward(ctx, grad_output: Tensor) -> Tensor:
+    def backward(ctx, grad_output: Tensor) -> tuple[Tensor, None]:
         return grad_output.neg() * ctx.lambd, None
 
 
@@ -367,7 +371,7 @@ def grad_reverse(x: Tensor, lambd: float = 1.0) -> Tensor:
     return GradReverse.apply(x, lambd)
 
 
-def compute_embedding_independence_loss(cell_embs, min_batch_size=32):
+def embedding_independence(cell_embs, min_batch_size=32):
     """
     Compute independence loss between different embeddings using both
     batch-wise decorrelation (when batch is large enough) and
@@ -378,41 +382,29 @@ def compute_embedding_independence_loss(cell_embs, min_batch_size=32):
         min_batch_size: minimum batch size for using correlation-based loss
     """
     batch_size, num_embeddings, emb_dim = cell_embs.shape
-
+    # typically, 64*8*256
     if batch_size >= min_batch_size:
-        # Batch is large enough - use correlation-based loss
-        # Center the embeddings
-        cell_embs_centered = cell_embs - cell_embs.mean(dim=0, keepdim=True)
+        # Compute pairwise distance matrices for each batch
+        gw_loss = 0
+        cell_embs = cell_embs.transpose(0, 1)
+        for i in range(num_embeddings):
+            # Get embeddings for this batch
+            embs = cell_embs[i]  # [num_embeddings, emb_dim]
 
-        # Compute correlation matrix between embeddings
-        correlation_matrix = torch.bmm(
-            cell_embs_centered.transpose(0, 1),
-            cell_embs_centered.transpose(0, 1).transpose(1, 2),
-        ) / (batch_size - 1)
+            # Compute GW distance between the two groups
+            # Compute GW distance between the two groups
+            # This measures structural differences between random subsets
+            gw_dist = gromov_wasserstein_distance(dist_mat1_np, dist_mat2_np, p, q)
+            gw_loss += torch.tensor(gw_dist, device=cell_embs.device)
 
-        # Normalize
-        norms = torch.sqrt(torch.diagonal(correlation_matrix, dim1=1, dim2=2) + 1e-8)
-        correlation_matrix = correlation_matrix / (
-            norms.unsqueeze(-1) * norms.unsqueeze(-2) + 1e-8
-        )
-
-        # Zero out diagonal
-        mask = 1 - torch.eye(num_embeddings, device=correlation_matrix.device)
-        correlation_loss = ((correlation_matrix * mask) ** 2).sum() / (
-            num_embeddings * (num_embeddings - 1)
-        )
-
-        # Combine with within-sample loss
-        within_sample_loss = compute_within_sample_loss(cell_embs)
-
-        return 0.7 * correlation_loss + 0.3 * within_sample_loss
+        return gw_loss / batch_size
 
     else:
         # Batch too small - use only within-sample dissimilarity
         return compute_within_sample_loss(cell_embs)
 
 
-def compute_within_sample_loss(cell_embs):
+def within_sample(cell_embs):
     """
     Compute dissimilarity between embeddings within each sample
     using a combination of cosine and L2 distance
@@ -436,6 +428,6 @@ def compute_within_sample_loss(cell_embs):
     # - High cosine similarity should be penalized
     # - Small L2 distance should be penalized
     cos_loss = (cos_sim * mask).pow(2).mean()
-    l2_loss = 1.0 / (l2_dist * mask + 1e-8).mean()
+    l2_loss = 1.0 / (l2_dist * mask + 1e-3).mean()
 
     return 0.5 * cos_loss + 0.5 * l2_loss

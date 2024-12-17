@@ -2,6 +2,7 @@
 import copy
 import os
 from functools import partial
+from pathlib import Path
 
 # from galore_torch import GaLoreAdamW
 from math import factorial
@@ -112,13 +113,13 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.noise = [0.6]
         self.do_cce = False
         self.cce_temp = 0.2
-        self.cce_scale = 0.005
+        self.cce_scale = 0.05
         self.do_ecs = False
         self.ecs_threshold = 0.4
         self.ecs_scale = 0.05
         self.do_mvc = False
         self.mvc_scale = 1.0
-        self.class_embd_diss_scale = 0.2
+        self.class_embd_diss_scale = 0.1
         self.do_adv_cls = False
         self.adv_class_scale = 0.1
         self.do_cls = False
@@ -329,11 +330,16 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             "grad_reverse_discriminator_loss.out_layer.bias"
         ].shape[0]
         # we won't use it but still need to take care of it. for now will still add it to the model
-        if size > self.grad_reverse_discriminator_loss.out_layer.bias.shape[0]:
+        if size != self.grad_reverse_discriminator_loss.out_layer.bias.shape[0]:
             self.grad_reverse_discriminator_loss = loss.AdversarialDiscriminatorLoss(
                 self.d_model,
                 n_cls=size,
             )
+            print(
+                "the discriminator for batch effect correction has been resized\
+                and re-initiliazed. It will start from scratch during this training if "
+            )
+
         # if len(checkpoints["state_dict"]["pos_encoder.pe"].shape) == 3:
         #    self.pos_encoder.pe = checkpoints["state_dict"]["pos_encoder.pe"].squeeze(1)
 
@@ -543,9 +549,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
         if self.attn_bias != "none":
             if not hasattr(self, "nbias"):
-                self.nbias = torch.Tensor(
-                    load_npz(FILEDIR + "/../../data/bias_sparse.npz").todense()
-                ).to(device=gene_pos.device, dtype=torch.float16)
+                bias_path = os.path.join(
+                    Path(FILEDIR).parent.parent, "data", "bias_sparse.npz"
+                )
+                self.nbias = torch.Tensor(load_npz(bias_path).todense()).to(
+                    device=gene_pos.device, dtype=torch.float16
+                )
             num = len(self.classes) + 2
             bias = torch.zeros(
                 (
@@ -635,6 +644,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         else:
             raise ValueError(f"Unknown optimizer: {self.optim}")
         if self.lr_reduce_monitor == None:
+            print("no lr reduce factor")
             return [optimizer]
         lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
@@ -982,9 +992,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # TASK 2. predict classes
         if len(self.classes) > 0:
             ## Calculate pairwise cosine similarity for the embeddings
-            loss_emb_indep = loss.compute_embedding_independence_loss(
-                output["cell_embs"]
-            )
+            loss_emb_indep = loss.within_sample(output["cell_embs"])
             losses.update({"emb_independence": loss_emb_indep})
             total_loss += self.class_embd_diss_scale * loss_emb_indep
 
@@ -1126,7 +1134,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                     expression,
                     depth,
                     pred_embedding=self.pred_embedding,
-                    max_size_in_mem=100_000,
+                    max_size_in_mem=120_000,
                 )
         else:
             self.info = batch["class"]
@@ -1135,7 +1143,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 expression,
                 depth,
                 pred_embedding=self.pred_embedding,
-                max_size_in_mem=100_000,
+                max_size_in_mem=120_000,
             )
         self.log("val_loss", val_loss, sync_dist=True)
         self.log_dict(losses, sync_dist=True)
@@ -1152,7 +1160,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         )
         self.pos = self.all_gather(self.pos).view(-1, self.pos.shape[-1])
         if self.trainer.state.stage != "sanity_check":
-            if not self.trainer.is_global_zero:
+            if self.trainer.is_global_zero:
+                print("logging anndata")
                 sch = self.lr_schedulers()
                 sch.step(self.trainer.callback_metrics["val_loss"])
                 # run the test function on specific dataset
@@ -1161,14 +1170,14 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 )
                 if (self.current_epoch + 1) % self.test_every == 0:
                     self.on_test_epoch_end()
-            # Synchronize all processes with a timeout
+                # Synchronize all processes with a timeout
             if torch.distributed.is_initialized():
                 # Set a timeout that's longer than your test typically takes
                 # Write rank to file for debugging
                 rank = torch.distributed.get_rank()
                 with open(f"rank_{rank}.txt", "a") as f:
                     f.write(f"Rank {rank} completed test epoch\n")
-                torch.distributed.barrier()
+                self.trainer.strategy.barrier()
 
     def test_step(self, *args, **kwargs):
         print("step")
@@ -1178,7 +1187,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # Run the test only on global rank 0
         name = self.name + "_step" + str(self.global_step)
         try:
-            metrics = utils.test(self, name, filedir=FILEDIR)
+            metrics = utils.test(self, name, filedir=str(FILEDIR), do_class=self.do_cls)
             print(metrics)
             print("done test")
             self.log_dict(metrics, sync_dist=False, rank_zero_only=True)
@@ -1384,7 +1393,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 else [torch.cat([self.expr_pred[0], output["mean"]])]
             )
         if self.embs is not None:
-            if self.embs.shape[0] > max_size_in_mem:
+            if self.embs.shape[0] > max_size_in_mem and self.pred_log_adata:
                 print("logging")
                 self.log_adata(name="predict_part_" + str(self.counter))
                 self.counter += 1
@@ -1392,6 +1401,11 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 self.expr_pred = None
                 self.pred = None
                 self.embs = None
+            elif not self.pred_log_adata:
+                print(
+                    "WARNING, reached max size in memory, deleting the adata, \
+                    need to set pred_log_adata to True to log the adata"
+                )
 
     def on_predict_epoch_end(self):
         """@see pl.LightningModule will"""
