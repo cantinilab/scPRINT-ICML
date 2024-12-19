@@ -19,7 +19,7 @@ trainer:
       init_args:
         project: ${project}
         save_dir: /pasteur/zeus/projets/p02/ml4ig_hot/Users/jkalfon/ #/data/log/
-        offline: True
+        offline: False
   callbacks:
     - class_path: lightning.pytorch.callbacks.StochasticWeightAveraging
       init_args:
@@ -52,9 +52,10 @@ data:
     - NCBITaxon:10090
   gene_position_tolerance: 10_000
   gene_embeddings: ./data/main/gene_embeddings.parquet
-  collection_name: all no zhang13M #preprocessed dataset
+  collection_name: all #preprocessed dataset, all no zhang13M
   how: random expr
   max_len: 2200
+  pin_memory: True
   weight_scaler: 100
   do_gene_pos: ./data/main/biomart_pos.parquet
   add_zero_genes: 0

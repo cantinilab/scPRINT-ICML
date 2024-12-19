@@ -60,6 +60,7 @@ data:
   collection_name: scPRINT-V2 full
   how: random expr
   max_len: 3200
+  pin_memory: True
   metacell_mode: 0.2
   weight_scaler: 200
   do_gene_pos: ./data/main/biomart_pos.parquet

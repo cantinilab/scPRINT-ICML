@@ -30,6 +30,7 @@ class MyCLI(LightningCLI):
         parser.set_defaults(
             {
                 "scprint_early_stopping.monitor": "val_loss",
+                # patience is the number of consecutive epochs with no improvement after which learning rate will be reduced.
                 "scprint_early_stopping.patience": 5,
             }
         )
