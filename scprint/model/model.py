@@ -16,9 +16,14 @@ from lightning.pytorch.tuner.lr_finder import _LRCallback
 from scipy.sparse import load_npz
 from torch import Tensor, nn, optim
 
-# from .linear_transformer import FastTransformerEncoderWrapper as FastTransformerEncoder
+# from .linear_transformer import FastTransformerEncoderWrapper as FastTransformer
 from . import decoders, encoders, loss, utils
-from simpler_flash import FlashTransformer
+
+try:
+    from simpler_flash import FlashTransformer
+except ImportError:
+    print("Warning: simpler_flash not found, using default transformer")
+    FlashTransformer = None
 from .loss import grad_reverse
 from .utils import WeightedMasker, simple_masker
 
@@ -58,6 +63,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         mvc_decoder: str = "None",
         pred_embedding: list[str] = [],
         cell_emb_style: str = "cls",
+        cell_specific_blocks: bool = False,
         freeze_embeddings: bool = True,
         label_decoders: Optional[Dict[str, Dict[int, str]]] = None,
         zinb: bool = True,
@@ -142,11 +148,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.get_attention_layer = []
         self.embs = None
         self.pred_log_adata = True
-        self.attn = utils.Attention(len(classes) + 2 + len(genes))
+        self.attn = utils.Attention(len(classes) + 1 + len(genes))
         self.tf_masker = WeightedMasker(genes, inv_weight=0.05)
         self.predict_depth_mult = 3
         self.predict_mode = "none"
         self.keep_all_cls_pred = False
+        self.cell_separation = True
         # should be stored somehow
         self.d_model = d_model
         self.normalization = normalization
@@ -234,12 +241,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 d_model, max_len=max_len, token_to_pos=token_to_pos
             )
 
-        self.cell_embs_count = len(self.classes) + 2
+        self.cell_embs_count = len(self.classes) + 1
         # Class Encoder
         # always have [base_cell_emb, time_embedding, depth_embedding] + any other class info
         # base cell embedding will store other cell specific information
         self.class_encoder = encoders.CategoryValueEncoder(
-            self.cell_embs_count - 1, d_model
+            self.cell_embs_count, d_model
         )
         # self.time_encoder = encoders.ContinuousValueEncoder(d_model, dropout)
         self.depth_encoder = encoders.ContinuousValueEncoder(
@@ -260,13 +267,26 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # regular or flash
         else:
             self.transformer = FlashTransformer(
-                d_model,
-                nhead,
-                nlayers,
+                d_model=d_model,
+                nhead=nhead,
                 dropout=dropout,
+                nlayers=nlayers,
+                cross_attn=cell_specific_blocks,
                 use_flash_attn=(transformer == "flash"),
                 **flash_attention_kwargs,
             )
+        if cell_specific_blocks:
+            self.cell_transformer = FlashTransformer(
+                d_model=d_model,
+                nhead=nhead,
+                nlayers=6,
+                dropout=dropout,
+                cross_attn=True,
+                use_flash_attn=(transformer == "flash"),
+                **flash_attention_kwargs,
+            )
+        else:
+            self.cell_transformer = None
 
         # decoders
         # expression
@@ -275,6 +295,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             nfirst_tokens_to_skip=self.cell_embs_count,
             dropout=dropout,
             zinb=zinb,
+            use_depth=True,
         )
         # cls decoder
         self.cls_decoders = torch.nn.ModuleDict()
@@ -396,29 +417,21 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
         if expression is not None:
             if self.normalization == "sum":
-                enc += self.expr_encoder(
-                    (expression / expression.sum(1).unsqueeze(1)), mask
-                )  # (minibatch, seq_len, embsize)
+                norm_expr = expression / expression.sum(1).unsqueeze(1)
+
             elif self.normalization == "log":
-                enc += self.expr_encoder(
-                    torch.log2(1 + expression), mask
-                )  # (minibatch, seq_len, embsize)
+                norm_expr = torch.log2(1 + expression)
             else:
                 raise ValueError(f"Unknown normalization: {self.normalization}")
-
+            enc.add_(self.expr_encoder(norm_expr, mask))
         if self.gene_pos_enc:
-            enc += self.pos_encoder(gene_pos)
-        cell_embs = (
-            self.class_encoder(
-                torch.Tensor(
-                    [list(range(self.cell_embs_count - 1))] * gene_pos.shape[0]
+            enc.add_(self.pos_encoder(gene_pos))
+        if cell_embs is None:
+            cell_embs = self.class_encoder(
+                torch.arange(self.cell_embs_count, device=expression.device).repeat(
+                    expression.shape[0], 1
                 )
-                .int()
-                .to(gene_pos.device)
             )
-            if cell_embs is None
-            else cell_embs
-        )  # (minibatch, embsize)
         if timepoint is not None:
             pass
             # cell_embs[:, 2, :] = self.time_encoder(timepoint)
@@ -429,9 +442,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             cell_embs = torch.cat(
                 (cell_embs[:, :1, :], depth_encoded, cell_embs[:, 1:, :]), dim=1
             )
-
-        enc = torch.cat([cell_embs, enc], dim=1)
-        return enc  # self.norm_and_dropout(enc) # we already apply prenorm & dropout  # (minibatch, seq_len, embsize)
+        return torch.cat([cell_embs, enc], dim=1)  # self.norm_and_dropout(enc)
+        # we already apply prenorm & dropout  # (minibatch, seq_len, embsize)
 
     def _decoder(
         self,
@@ -441,6 +453,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         do_sample=False,
         do_mvc=False,
         do_class=False,
+        req_depth: Optional[Tensor] = None,
     ):
         """
         _decoder given the transformer output, decode into the final output.
@@ -451,7 +464,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         Returns:
             dict: the output of the model
         """
-        output = self.expr_decoder(transformer_output)
+        req_depth = torch.log2(1 + req_depth)
+        output = self.expr_decoder(transformer_output, req_depth)
 
         output["mean"] = depth_mult.unsqueeze(1) * output["mean"]
         if do_sample:
@@ -464,7 +478,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 {
                     "cls_output_" + clsname: self.cls_decoders[clsname](
                         output["cell_embs"][
-                            :, 2 + i, :
+                            :, 1 + i, :
                         ]  # the first elem is the base cell embedding
                     )
                     for i, clsname in enumerate(self.classes)
@@ -532,14 +546,15 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 - "cell_emb": the main cell embedding
                 - "cls_output": the output of the classifier
         """
-        encoding = self._encoder(gene_pos, expression, mask, req_depth, timepoint)
-
+        encoding = self._encoder(
+            gene_pos, expression, mask, req_depth=None, timepoint=timepoint
+        )
         if self.attn_bias != "none":
             if not hasattr(self, "nbias"):
                 self.nbias = torch.Tensor(
                     load_npz(FILEDIR + "/../../data/bias_sparse.npz").todense()
                 ).to(device=gene_pos.device, dtype=torch.float16)
-            num = len(self.classes) + 2
+            num = self.cell_embs_count if not self.cell_transformer else 0
             bias = torch.zeros(
                 (
                     gene_pos.shape[0],
@@ -551,12 +566,23 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             )
             bias[:, num:, :num] = -10_000  # do not pay attention to the cls embeddings
             bias[:, num:, num:] = self.nbias[gene_pos[:, :, None], gene_pos[:, None, :]]
+        if self.cell_transformer:
+            cell_encoding = encoding[:, : self.cell_embs_count, :]
+            encoding = encoding[:, self.cell_embs_count :, :]
         transformer_output = self.transformer(
             encoding,
             return_qkv=get_attention_layer,
             bias=bias if self.attn_bias != "none" else None,
             bias_layer=list(range(self.nlayers - 1)),
         )
+        if self.cell_transformer:
+            cell_output = self.cell_transformer(
+                cell_encoding,
+                x_kv=transformer_output[0]
+                if len(get_attention_layer) > 0
+                else transformer_output,
+            )
+            transformer_output = torch.cat([cell_output, transformer_output], dim=1)
         # if not provided we will mult by the current expression sum
         depth_mult = expression.sum(1) if depth_mult is None else depth_mult
         if len(get_attention_layer) > 0:
@@ -569,6 +595,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                     do_sample,
                     do_mvc,
                     do_class,
+                    req_depth=req_depth,
                 ),
                 qkvs,
             )
@@ -580,6 +607,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_sample,
                 do_mvc,
                 do_class,
+                req_depth=req_depth,
             )
 
     def configure_optimizers(self):
@@ -678,7 +706,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         Returns:
             _type_: _description_
         """
-        # TASK 1 & 2 & 3 (first pass, expression reconstruction, label prediction)
         total_loss, losses = self._full_training(
             batch=batch,
             do_denoise=self.do_denoise,
@@ -695,6 +722,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             run_full_forward=self.run_full_forward,
             mask_ratio=self.mask_ratio,
         )
+
         self.log("train_loss", total_loss, prog_bar=True, sync_dist=True)
         self.log_dict(losses, prog_bar=True, sync_dist=True)
         return total_loss
@@ -741,7 +769,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         """
         if type(mask_ratio) is not list:
             mask_ratio = [mask_ratio]
-
         # dynamically change the context length every 5 steps
         if self.trainer.global_step % 5 == 0:
             context_length = torch.randint(400, batch["x"].shape[1], (1,)).item()
@@ -781,8 +808,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             full_cell_embs = output["cell_embs"].clone()
             total_loss += tot
             losses.update({"full_forward_" + k: v for k, v in l.items()})
-            do_mvc = False if do_mvc else do_mvc
-            do_cls = False if do_cls else do_cls
+            do_mvc = False
+            do_cls = False
 
         for i in mask_ratio:
             # do noise and mask
@@ -818,8 +845,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_adv_batch & do_cls,
             )
             # we only want to do them once
-            do_mvc = False if do_mvc else do_mvc
-            do_cls = False if do_cls else do_cls
+            do_mvc = False
+            do_cls = False
 
             cell_embs.append(output["cell_emb"].clone())
             total_loss += tot
@@ -847,8 +874,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                     do_adv_cls & do_cls,
                     do_adv_batch & do_cls,
                 )
-                do_mvc = False if do_mvc else do_mvc
-                do_cls = False if do_cls else do_cls
+                do_mvc = False
+                do_cls = False
 
                 cell_embs.append(output["cell_emb"].clone())
                 total_loss += tot
@@ -860,20 +887,23 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # TASK 6. expression generation
         if do_generate:
             output = self._generate(
-                output["cell_embs"] if not run_full_forward else full_cell_embs,
-                gene_pos,
+                cell_embs=output["cell_embs"]
+                if not run_full_forward
+                else full_cell_embs,
+                gene_pos=gene_pos,
                 depth_mult=expression.sum(1),
-                req_depth=None,
+                req_depth=total_count,
                 do_mvc=do_mvc,
                 do_class=do_cls,
             )
-            cell_embs.append(output["cell_emb"].clone())
+            if "cell_emb" in output:
+                cell_embs.append(output["cell_emb"].clone())
             l, tloss = self._compute_loss(
                 output,
                 expression,
                 clss,
                 batch_idx,
-                do_ecs,
+                "cell_emb" in output,
                 do_adv_cls & do_cls,
                 do_adv_batch & do_cls,
             )
@@ -967,14 +997,13 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         losses.update({"expr": loss_expr})
 
         # TASK 2. predict classes
-        if len(self.classes) > 0:
+        if len(self.classes) > 0 and "cell_embs" in output:
             ## Calculate pairwise cosine similarity for the embeddings
+            # Calculate pairwise cosine similarity more efficiently
+            embs = output["cell_embs"]
+            embs_normalized = torch.nn.functional.normalize(embs, p=2, dim=-1)
             cos_sim_matrix = (
-                torch.nn.functional.cosine_similarity(
-                    output["cell_embs"].unsqueeze(2),
-                    output["cell_embs"].unsqueeze(1),
-                    dim=3,
-                )
+                torch.bmm(embs_normalized, embs_normalized.transpose(1, 2))
                 .abs()
                 .mean(0)
             )
@@ -1024,6 +1053,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             do_adv_batch
             and self.grad_reverse_discriminator_loss is not None
             and batch_idx is not None
+            and "cell_embs" in output
         ):
             mean_emb = torch.mean(output["cell_embs"][:, 2:, :].clone(), dim=1)
             loss_adv = self.grad_reverse_discriminator_loss(mean_emb, batch_idx)
@@ -1043,7 +1073,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             total_loss += loss_expr_mvc * self.mvc_scale
             losses.update({"expr_mvc": loss_expr_mvc})
         # TASK 5. elastic cell similarity
-        if do_ecs:
+        if do_ecs and "cell_emb" in output:
             loss_ecs = loss.ecs(output["cell_emb"], ecs_threshold=self.ecs_threshold)
             total_loss += self.ecs_scale * loss_ecs
             losses.update({"ecs": loss_ecs})
@@ -1282,7 +1312,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
         if len(pred_embedding) == 0:
             pred_embedding = self.classes
-        ind = [self.classes.index(i) + 2 for i in pred_embedding]
+        ind = [self.classes.index(i) + 1 for i in pred_embedding]
         if not keep_output:
             return {
                 "embs": torch.mean(cell_embs[:, ind, :], dim=1),
@@ -1393,7 +1423,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         """
         if self.cell_emb_style == "cls" and self.classes is not None:
             # (minibatch, embsize)
-            cell_emb = layer_output[:, : 2 + len(self.classes)]
+            cell_emb = layer_output[:, : self.cell_embs_count]
         elif self.cell_emb_style == "avg-pool":
             cell_emb = torch.mean(layer_output, dim=1)
         else:
@@ -1406,8 +1436,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         gene_pos: Tensor,
         depth_mult: Tensor,
         req_depth: Optional[Tensor] = None,
-        tp: Optional[Tensor] = None,
-        gen_iters: int = 1,
         **decoder_kwargs,
     ):
         """
@@ -1424,20 +1452,26 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             gen_iters(:obj:`int`): An integer representing the number of generation iterations.
             classes(:obj:`Tensor`): An optional tensor representing the classes. It has a shape of (batch,).
         """
-        if tp is not None:
-            tp = tp / gen_iters
-        for i in range(gen_iters):
-            encoding = self._encoder(
-                cell_embs=cell_embs,
-                gene_pos=gene_pos,
-                req_depth=req_depth,
-                timepoint=tp * (i + 1) if tp is not None else None,
-            )  # (minibatch, seq_len, embsize)
-            transformer_output = self.transformer(encoding)
-            cell_embs = self.get_cell_embs(transformer_output)
-        output = self._decoder(
-            transformer_output, depth_mult=depth_mult, **decoder_kwargs
+        encoding = self._encoder(
+            cell_embs=cell_embs,
+            gene_pos=gene_pos,
+            req_depth=None,
         )
+        if self.cell_transformer:
+            gene_encoding = encoding[:, self.cell_embs_count :, :]
+            transformer_output = self.transformer(gene_encoding, x_kv=cell_embs)
+            transformer_output = torch.cat([cell_embs, transformer_output], dim=1)
+        else:
+            transformer_output = self.transformer(encoding)
+        output = self._decoder(
+            transformer_output,
+            depth_mult=depth_mult,
+            req_depth=req_depth,
+            **decoder_kwargs,
+        )
+        if self.cell_transformer:
+            output.pop("cell_embs")
+            output.pop("cell_emb")
         return output  # (minibatch, seq_len)
 
     def log_adata(self, gtclass=None, name=""):

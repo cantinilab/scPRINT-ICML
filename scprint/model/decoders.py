@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, Optional
 
 import torch
 from torch import Tensor, nn
@@ -34,6 +34,7 @@ class ExprDecoder(nn.Module):
         nfirst_tokens_to_skip: int = 0,
         dropout: float = 0.1,
         zinb: bool = True,
+        use_depth: bool = False,
     ):
         """
         ExprDecoder Decoder for the gene expression prediction.
@@ -49,7 +50,7 @@ class ExprDecoder(nn.Module):
         super(ExprDecoder, self).__init__()
         self.nfirst_tokens_to_skip = nfirst_tokens_to_skip
         self.fc = nn.Sequential(
-            nn.Linear(d_model, d_model),
+            nn.Linear(d_model if not use_depth else d_model + 1, d_model),
             nn.LayerNorm(d_model),
             nn.LeakyReLU(),
             nn.Dropout(dropout),
@@ -59,11 +60,20 @@ class ExprDecoder(nn.Module):
         )
         self.pred_var_zero = nn.Linear(d_model, 3 if zinb else 1)
         self.zinb = zinb
+        print(self.nfirst_tokens_to_skip)
 
-    def forward(self, x: Tensor) -> Dict[str, Tensor]:
+    def forward(
+        self, x: Tensor, req_depth: Optional[Tensor] = None
+    ) -> Dict[str, Tensor]:
         """x is the output of the transformer, (batch, seq_len, d_model)"""
         # we don't do it on the labels
-        x = self.fc(x[:, self.nfirst_tokens_to_skip :, :])
+        x = x[:, self.nfirst_tokens_to_skip :, :]
+        if req_depth is not None:
+            x = torch.cat(
+                [x, req_depth.unsqueeze(1).unsqueeze(-1).expand(-1, x.shape[1], -1)],
+                dim=-1,
+            )
+        x = self.fc(x)
         if self.zinb:
             pred_value, var_value, zero_logits = self.pred_var_zero(x).split(
                 1, dim=-1
