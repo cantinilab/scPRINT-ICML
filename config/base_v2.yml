@@ -61,6 +61,7 @@ data:
   how: random expr
   max_len: 3200
   pin_memory: True
+  prefetch_factor: 3
   metacell_mode: 0.2
   weight_scaler: 200
   do_gene_pos: ./data/main/biomart_pos.parquet
@@ -69,7 +70,7 @@ data:
   validation_split: 0.05
   test_split: 0.02
   batch_size: 32
-  num_workers: 16
+  num_workers: 20
   hierarchical_clss:
     - cell_type_ontology_term_id
     - tissue_ontology_term_id

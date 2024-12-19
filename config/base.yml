@@ -63,7 +63,8 @@ data:
   validation_split: 0.05
   test_split: 0.05
   batch_size: 64
-  num_workers: 16
+  num_workers: 20
+  prefetch_factor: 3
   hierarchical_clss:
     - cell_type_ontology_term_id
     - disease_ontology_term_id
