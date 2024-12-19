@@ -9,7 +9,7 @@ class TrainingMode(Callback):
         do_denoise: bool = True,
         noise: List[float] = [0.6],
         do_cce: bool = False,
-        cce_sim: float = 0.2,  # .6
+        cce_temp: float = 0.2,  # .6
         cce_scale: float = 0.1,  # .01
         do_ecs: bool = False,
         ecs_threshold: float = 0.4,
@@ -32,7 +32,6 @@ class TrainingMode(Callback):
         do_cls: bool = True,
         do_adv_batch: bool = False,
         run_full_forward: bool = False,
-        class_embd_diss_scale: float = 0.1,
         lr: float = 0.001,
         optim: str = "adamW",
         weight_decay: float = 0.01,
