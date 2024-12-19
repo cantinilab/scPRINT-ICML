@@ -97,6 +97,7 @@ class MVCDecoder(nn.Module):
         tot_labels: int = 1,
         query_activation: nn.Module = nn.Sigmoid,
         hidden_activation: nn.Module = nn.PReLU,
+        zinb: bool = True,
     ) -> None:
         """
         MVCDecoder Decoder for the masked value prediction for cell embeddings.
@@ -117,25 +118,28 @@ class MVCDecoder(nn.Module):
             self.gene2query = nn.Linear(d_model, d_model)
             self.norm = nn.LayerNorm(d_model)
             self.query_activation = query_activation()
-            self.pred_var_zero = nn.Linear(d_model, d_model * 3, bias=False)
+            self.pred_var_zero = nn.Linear(
+                d_model, d_model * (3 if zinb else 1), bias=False
+            )
         elif arch_style == "concat query":
             self.gene2query = nn.Linear(d_model, d_model)
             self.query_activation = query_activation()
-            self.fc1 = nn.Linear(d_model * (1 + tot_labels), d_model / 2)
+            self.fc1 = nn.Linear(d_model * (1 + tot_labels), d_model // 2)
             self.hidden_activation = hidden_activation()
-            self.fc2 = nn.Linear(d_model / 2, 3)
+            self.fc2 = nn.Linear(d_model // 2, (3 if zinb else 1))
         elif arch_style == "sum query":
             self.gene2query = nn.Linear(d_model, d_model)
             self.query_activation = query_activation()
             self.fc1 = nn.Linear(d_model, 64)
             self.hidden_activation = hidden_activation()
-            self.fc2 = nn.Linear(64, 3)
+            self.fc2 = nn.Linear(64, (3 if zinb else 1))
         else:
             raise ValueError(f"Unknown arch_style: {arch_style}")
 
         self.arch_style = arch_style
         self.do_detach = arch_style.endswith("detach")
         self.d_model = d_model
+        self.zinb = zinb
 
     def forward(
         self,
@@ -149,15 +153,21 @@ class MVCDecoder(nn.Module):
         """
         if self.arch_style == "inner product":
             query_vecs = self.query_activation(self.norm(self.gene2query(gene_embs)))
-            pred, var, zero_logits = self.pred_var_zero(query_vecs).split(
-                self.d_model, dim=-1
-            )
+            if self.zinb:
+                pred, var, zero_logits = self.pred_var_zero(query_vecs).split(
+                    self.d_model, dim=-1
+                )
+            else:
+                pred = self.pred_var_zero(query_vecs)
             cell_emb = cell_emb.unsqueeze(2)
-            pred, var, zero_logits = (
-                torch.bmm(pred, cell_emb).squeeze(2),
-                torch.bmm(var, cell_emb).squeeze(2),
-                torch.bmm(zero_logits, cell_emb).squeeze(2),
-            )
+            if self.zinb:
+                pred, var, zero_logits = (
+                    torch.bmm(pred, cell_emb).squeeze(2),
+                    torch.bmm(var, cell_emb).squeeze(2),
+                    torch.bmm(zero_logits, cell_emb).squeeze(2),
+                )
+            else:
+                pred = torch.bmm(pred, cell_emb).squeeze(2)
             # zero logits need to based on the cell_emb, because of input exprs
         elif self.arch_style == "concat query":
             query_vecs = self.query_activation(self.gene2query(gene_embs))
@@ -167,18 +177,27 @@ class MVCDecoder(nn.Module):
             h = self.hidden_activation(
                 self.fc1(torch.cat([cell_emb, query_vecs], dim=2))
             )
-            pred, var, zero_logits = self.fc2(h).split(1, dim=-1)
+            if self.zinb:
+                pred, var, zero_logits = self.fc2(h).split(1, dim=-1)
+            else:
+                pred = self.fc2(h)
         elif self.arch_style == "sum query":
             query_vecs = self.query_activation(self.gene2query(gene_embs))
             cell_emb = cell_emb.unsqueeze(1)
 
             h = self.hidden_activation(self.fc1(cell_emb + query_vecs))
-            pred, var, zero_logits = self.fc2(h).split(1, dim=-1)
-        return dict(
-            mvc_mean=F.softmax(pred, dim=-1),
-            mvc_disp=torch.exp(torch.clamp(var, max=15)),
-            mvc_zero_logits=zero_logits,
-        )
+            if self.zinb:
+                pred, var, zero_logits = self.fc2(h).split(1, dim=-1)
+            else:
+                pred = self.fc2(h)
+        if self.zinb:
+            return dict(
+                mvc_mean=F.softmax(pred, dim=-1),
+                mvc_disp=torch.exp(torch.clamp(var, max=15)),
+                mvc_zero_logits=zero_logits,
+            )
+        else:
+            return dict(mvc_mean=F.softmax(pred, dim=-1))
 
 
 class ClsDecoder(nn.Module):

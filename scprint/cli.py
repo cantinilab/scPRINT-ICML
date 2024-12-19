@@ -11,6 +11,8 @@ from lightning.pytorch.cli import LightningCLI, _get_short_description
 from scprint.tasks import Denoiser, Embedder, GNInfer
 
 from .trainer import TrainingMode
+from lightning.pytorch.strategies import DDPStrategy
+from lightning.pytorch.trainer import Trainer
 
 TASKS = [("embed", Embedder), ("gninfer", GNInfer), ("denoise", Denoiser)]
 
@@ -28,7 +30,8 @@ class MyCLI(LightningCLI):
         parser.set_defaults(
             {
                 "scprint_early_stopping.monitor": "val_loss",
-                "scprint_early_stopping.patience": 3,
+                # patience is the number of consecutive epochs with no improvement after which learning rate will be reduced.
+                "scprint_early_stopping.patience": 5,
             }
         )
         parser.add_lightning_class_args(
@@ -258,3 +261,32 @@ class MyCLI(LightningCLI):
             if "set_float32_matmul_precision" in k:
                 if v:
                     torch.set_float32_matmul_precision("medium")
+        if "fit" in self.config and self.config["fit"]["trainer"]["strategy"] in [
+            "ddp",
+            "ddp_find_unused_parameters_true",
+        ]:
+            import os
+
+            os.environ["NCCL_TIMEOUT"] = str(7000)  # 2 hours in seconds
+            os.environ["TORCH_DISTRIBUTED_TIMEOUT"] = str(7000)  # 2 hours in seconds
+            os.environ["PL_TRAINER_STRATEGY_TIMEOUT"] = str(7000)
+
+            print("setting global pytorch distributed timeout to 10000s")
+
+    def instantiate_trainer(self, **kwargs) -> Trainer:
+        """Override to customize trainer instantiation"""
+        # Modify strategy if it's DDP
+        trainer = super().instantiate_trainer(**kwargs)
+        if "fit" in self.config and self.config["fit"]["trainer"]["strategy"] in [
+            "ddp",
+            "ddp_find_unused_parameters_true",
+        ]:
+            # Create DDPStrategy with custom timeout
+            from datetime import timedelta
+
+            # Update the config
+            print("updating the config")
+            trainer.strategy._timeout = timedelta(seconds=7000)  # 2hours in second
+            trainer.strategy.setup_distributed()
+        # Call parent method to create trainer
+        return trainer

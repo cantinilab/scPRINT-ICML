@@ -28,7 +28,7 @@ trainer:
         do_denoise: False
         noise: []
         do_cce: True
-        # cce_sim: 0.4
+        # cce_temp: 0.4
         do_ecs: True
         # ecs_threshold: 0.6
         # ecs_scale: 10.0

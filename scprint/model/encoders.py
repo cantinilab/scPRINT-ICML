@@ -85,7 +85,7 @@ class PositionalEncoding(nn.Module):
             arr.append(pe[v - 1].numpy())
         pe = torch.Tensor(np.array(arr))
         # Remove the unnecessary middle dimension since pe should be [m, d]
-        pe = pe.squeeze(1)
+        # pe = pe.squeeze(1)
         self.register_buffer("pe", pe)
 
     def forward(self, gene_pos: Tensor) -> Tensor:

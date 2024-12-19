@@ -20,28 +20,28 @@ trainer:
         do_adv_cls: False
         do_next_tp: False
         do_adv_batch: False
-        run_full_forward: False
+        run_full_forward: True
         do_cls: True
         class_scale: 1
         warmup_duration: 1500
         fused_adam: True
-        mask_ratio: []
+        mask_ratio: ['TF']
 model:
   lr: 0.0001
   optim: "adamW"
   weight_decay: 0.02
   nhead: 40
   nlayers: 36
-  layers_cls: [1024]
+  layers_cls: [512]
   d_model: 2560
   freeze_embeddings: False
   checkpointing: False
-  #num_heads_kv: 10
+  num_heads_kv: 10
 data:
   collection_name: preprocessed dataset #all no zhang13M #preprocessed dataset #all no zhang13M
   how: random expr
-  max_len: 2400
+  max_len: 4400
   weight_scaler: 100
-  train_oversampling_per_epoch: 0.5
+  train_oversampling_per_epoch: 0.1
   batch_size: 1
   num_workers: 6
