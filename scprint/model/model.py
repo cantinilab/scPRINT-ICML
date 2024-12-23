@@ -68,6 +68,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         pred_embedding: list[str] = [],
         cell_emb_style: str = "cls",
         cell_specific_blocks: bool = False,
+        depth_atinput: bool = False,
         freeze_embeddings: bool = True,
         label_decoders: Optional[Dict[str, Dict[int, str]]] = None,
         zinb: bool = True,
@@ -134,8 +135,11 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.do_adv_batch = False
         self.run_full_forward = True
         self.class_scale = 0.4
+        self.zinb_and_mse = False
         self.do_next_tp = False
         self.do_generate = False
+        self.var_context_length = False
+        self.depth_atinput = depth_atinput
         self.mask_ratio = []
         self.warmup_duration = 500
         self.weight_decay = 0.01
@@ -152,7 +156,9 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.get_attention_layer = []
         self.embs = None
         self.pred_log_adata = True
-        self.attn = utils.Attention(len(classes) + 1 + len(genes))
+        self.attn = utils.Attention(
+            len(classes) + (2 if self.depth_atinput else 1) + len(genes)
+        )
         self.tf_masker = WeightedMasker(genes, inv_weight=0.05)
         self.predict_depth_mult = 3
         self.predict_mode = "none"
@@ -245,7 +251,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 d_model, max_len=max_len, token_to_pos=token_to_pos
             )
 
-        self.cell_embs_count = len(self.classes) + 1
+        self.cell_embs_count = len(self.classes) + (2 if self.depth_atinput else 1)
         # Class Encoder
         # always have [base_cell_emb, time_embedding, depth_embedding] + any other class info
         # base cell embedding will store other cell specific information
@@ -299,7 +305,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             nfirst_tokens_to_skip=self.cell_embs_count,
             dropout=dropout,
             zinb=zinb,
-            use_depth=True,
+            use_depth=not self.depth_atinput,
         )
         # cls decoder
         self.cls_decoders = torch.nn.ModuleDict()
@@ -477,7 +483,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         Returns:
             dict: the output of the model
         """
-        req_depth = torch.log2(1 + req_depth)
+        if req_depth is not None:
+            req_depth = torch.log2(1 + req_depth)
         output = self.expr_decoder(transformer_output, req_depth)
 
         output["mean"] = depth_mult.unsqueeze(1) * output["mean"]
@@ -560,7 +567,11 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 - "cls_output": the output of the classifier
         """
         encoding = self._encoder(
-            gene_pos, expression, mask, req_depth=None, timepoint=timepoint
+            gene_pos,
+            expression,
+            mask,
+            req_depth=req_depth if self.depth_atinput else None,
+            timepoint=timepoint,
         )
         if self.attn_bias != "none":
             if not hasattr(self, "nbias"):
@@ -611,7 +622,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                     do_sample,
                     do_mvc,
                     do_class,
-                    req_depth=req_depth,
+                    req_depth=req_depth if not self.depth_atinput else None,
                 ),
                 qkvs,
             )
@@ -623,7 +634,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_sample,
                 do_mvc,
                 do_class,
-                req_depth=req_depth,
+                req_depth=req_depth if not self.depth_atinput else None,
             )
 
     def configure_optimizers(self):
@@ -788,7 +799,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         if type(mask_ratio) is not list:
             mask_ratio = [mask_ratio]
         # dynamically change the context length every 5 steps
-        if self.trainer.global_step % 5 == 0:
+        if self.var_context_length and self.trainer.global_step % 5 == 0:
             context_length = torch.randint(400, batch["x"].shape[1], (1,)).item()
         else:
             context_length = batch["x"].shape[1]
@@ -864,6 +875,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 do_ecs,
                 do_adv_cls & do_cls,
                 do_adv_batch & do_cls,
+                do_mse=self.zinb_and_mse,
             )
             # we only want to do them once
             do_mvc = False
@@ -894,6 +906,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                     do_ecs,
                     do_adv_cls & do_cls,
                     do_adv_batch & do_cls,
+                    do_mse=self.zinb_and_mse,
                 )
                 do_mvc = False
                 do_cls = False
@@ -927,6 +940,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 "cell_emb" in output,
                 do_adv_cls & do_cls,
                 do_adv_batch & do_cls,
+                do_mse=self.zinb_and_mse,
             )
             losses.update({"gen_" + k: v for k, v in l.items()})
             total_loss += tloss
@@ -1345,7 +1359,10 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
         if len(pred_embedding) == 0:
             pred_embedding = self.classes
-        ind = [self.classes.index(i) + 1 for i in pred_embedding]
+        ind = [
+            self.classes.index(i) + (2 if self.depth_atinput else 1)
+            for i in pred_embedding
+        ]
         if not keep_output:
             return {
                 "embs": torch.mean(cell_embs[:, ind, :], dim=1),

@@ -35,6 +35,8 @@ class TrainingMode(Callback):
         lr: float = 0.001,
         optim: str = "adamW",
         weight_decay: float = 0.01,
+        zinb_and_mse: bool = False,
+        var_context_length: bool = True,
         name="",
     ):
         """
@@ -73,6 +75,8 @@ class TrainingMode(Callback):
             name (str): Name of the training mode. Defaults to an empty string. should be an ID for the model
             test_every (int): Number of epochs between testing. Defaults to 1.
             class_embd_diss_scale (float): Scaling factor for the class embedding dissimilarity loss. Defaults to 0.1.
+            zinb_and_mse (bool): Whether to use ZINB and MSE loss. Defaults to False.
+            var_context_length (bool): Whether to use variable context length. Defaults to False.
         """
         super().__init__()
         self.do_denoise = do_denoise
@@ -106,6 +110,8 @@ class TrainingMode(Callback):
         self.name = name
         self.test_every = test_every
         self.class_embd_diss_scale = class_embd_diss_scale
+        self.zinb_and_mse = zinb_and_mse
+        self.var_context_length = var_context_length
 
     def __repr__(self):
         return (
@@ -139,7 +145,9 @@ class TrainingMode(Callback):
             f"run_full_forward={self.run_full_forward}), "
             f"name={self.name}, "
             f"test_every={self.test_every}, "
-            f"class_embd_diss_scale={self.class_embd_diss_scale})"
+            f"class_embd_diss_scale={self.class_embd_diss_scale}, "
+            f"zinb_and_mse={self.zinb_and_mse}, "
+            f"var_context_length={self.var_context_length})"
         )
 
     def setup(self, trainer, model, stage=None):
@@ -175,4 +183,6 @@ class TrainingMode(Callback):
         model.name = self.name
         model.test_every = self.test_every
         model.class_embd_diss_scale = self.class_embd_diss_scale
+        model.zinb_and_mse = self.zinb_and_mse
+        model.var_context_length = self.var_context_length
         # model.configure_optimizers()
