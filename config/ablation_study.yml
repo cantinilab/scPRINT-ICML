@@ -63,7 +63,7 @@ data:
     - NCBITaxon:9606
   gene_position_tolerance: 10_000
   gene_embeddings: /lustre/fswork/projects/rech/xeg/uat95fg/gene_embeddings.parquet
-  collection_name: scPRINT-V2 (ablation) #scPRINT-V2 (good quality)
+  collection_name: scPRINT-V2 (100 random humans) #scPRINT-V2 (good quality)
   how: random expr
   max_len: 2200
   pin_memory: True
