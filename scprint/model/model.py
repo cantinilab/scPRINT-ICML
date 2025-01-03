@@ -604,8 +604,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 device=gene_pos.device,
                 dtype=torch.float16,
             )
-            bias[:, num:, :num] = -10_000  # do not pay attention to the cls embeddings
-            bias[:, num:, num:] = self.nbias[gene_pos[:, :, None], gene_pos[:, None, :]]
+            # fade slowly through the iterations
+            fade_factor = 400 / (400 + self.trainer.global_step)
+            # bias[:, num:, :num] = -10_000  # do not pay attention to the cls embeddings
+            bias[:, num:, num:] = (
+                self.nbias[gene_pos[:, :, None], gene_pos[:, None, :]] * fade_factor
+            )
         if self.cell_transformer:
             cell_encoding = encoding[:, : self.cell_embs_count, :]
             encoding = encoding[:, self.cell_embs_count :, :]

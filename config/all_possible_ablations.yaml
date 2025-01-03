@@ -27,8 +27,9 @@ trainer:
 scprint_training:
   test_every: 1
 
-##### Test attention bias faded vs none
-
+##### Test attention bias faded vs none (MAKE SURE RIGHT DIR (T))
+model:
+  attn_bias: full
 
 ##### 
 model:
@@ -63,19 +64,19 @@ model:
 scprint_training:
   do_mvc: True
 
-#####
+##### need to run them until the end
 data:
   organisms:
     - NCBITaxon:9606
     - NCBITaxon:10090
   collection_name: scPRINT-V2 (good quality)
 
-#####
+##### need to run them until the end
 data:
   organisms:
     - NCBITaxon:9606
     - NCBITaxon:10090
-  collection_name: scPRINT-V2 (full)
+  collection_name: scPRINT-V2 full
 
 #####
 data:
