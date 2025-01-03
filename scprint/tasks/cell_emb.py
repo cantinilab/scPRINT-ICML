@@ -414,8 +414,8 @@ def default_benchmark(
     adata.obs["organism_ontology_term_id"] = "NCBITaxon:9606"
     adata = preprocessor(adata.copy())
     embedder = Embedder(
-        pred_embedding=["cell_type_ontology_term_id"],
-        doclass=(default_dataset not in ["pancreas", "lung"]),
+        pred_embedding=["cell_type_ontology_term_id"] if do_class else [],
+        doclass=(default_dataset not in ["pancreas", "lung"]) and do_class,
         max_len=4000,
         keep_all_cls_pred=False,
         output_expression="none",

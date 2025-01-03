@@ -157,7 +157,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.embs = None
         self.pred_log_adata = True
         self.attn = utils.Attention(
-            len(classes) + (2 if self.depth_atinput else 1) + len(genes)
+            len(genes),
+            additional_tokens=(
+                len(classes) + (2 if self.depth_atinput else 1)
+                if not cell_specific_blocks
+                else 0
+            ),
         )
         self.tf_masker = WeightedMasker(genes, inv_weight=0.05)
         self.predict_depth_mult = 3
@@ -256,7 +261,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # always have [base_cell_emb, time_embedding, depth_embedding] + any other class info
         # base cell embedding will store other cell specific information
         self.class_encoder = encoders.CategoryValueEncoder(
-            self.cell_embs_count, d_model
+            self.cell_embs_count - (1 if self.depth_atinput else 0), d_model
         )
         # self.time_encoder = encoders.ContinuousValueEncoder(d_model, dropout)
         self.depth_encoder = encoders.ContinuousValueEncoder(
@@ -353,6 +358,11 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 self.cls_decoders[name].out_layer = torch.nn.Linear(
                     clss.out_layer.weight.shape[1], size
                 )
+        size = checkpoints["state_dict"]["class_encoder.embedding.weight"].shape[0]
+        if size != self.class_encoder.embedding.weight.shape[0]:
+            self.class_encoder = encoders.CategoryValueEncoder(size, self.d_model)
+            self.cell_embs_count = size
+            print("changing size, could lead to issues")
         size = checkpoints["state_dict"][
             "grad_reverse_discriminator_loss.out_layer.bias"
         ].shape[0]
@@ -372,6 +382,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
         self.normalization = checkpoints["hyper_parameters"]["normalization"]
         if "classes" in checkpoints["hyper_parameters"]:
+            if self.classes != checkpoints["hyper_parameters"]["classes"]:
+                print("changing the number of classes, could lead to issues")
             self.classes = checkpoints["hyper_parameters"]["classes"]
             self.label_counts = checkpoints["hyper_parameters"]["label_counts"]
             self.label_decoders = checkpoints["hyper_parameters"]["label_decoders"]
@@ -447,9 +459,10 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             enc.add_(self.pos_encoder(gene_pos))
         if cell_embs is None:
             cell_embs = self.class_encoder(
-                torch.arange(self.cell_embs_count, device=expression.device).repeat(
-                    expression.shape[0], 1
-                )
+                torch.arange(
+                    self.cell_embs_count - (1 if self.depth_atinput else 0),
+                    device=expression.device,
+                ).repeat(expression.shape[0], 1)
             )
         if timepoint is not None:
             pass
@@ -498,7 +511,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 {
                     "cls_output_" + clsname: self.cls_decoders[clsname](
                         output["cell_embs"][
-                            :, 1 + i, :
+                            :, i + (2 if self.depth_atinput else 1), :
                         ]  # the first elem is the base cell embedding
                     )
                     for i, clsname in enumerate(self.classes)
@@ -1059,7 +1072,9 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 losses.update({"cls": loss_cls})
             # TASK 2bis. adversarial label prediction
             if do_adv_cls:
-                embs = output["cell_embs"][:, 2:, :].clone()
+                embs = output["cell_embs"][
+                    :, (2 if self.depth_atinput else 1) :, :
+                ].clone()
                 for j, adv_cls in enumerate(self.classes):
                     ind = torch.arange(len(self.classes))
                     mean_embs = torch.mean(embs[:, ind != j, :], dim=1)
@@ -1082,7 +1097,10 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             and batch_idx is not None
             and "cell_embs" in output
         ):
-            mean_emb = torch.mean(output["cell_embs"][:, 2:, :].clone(), dim=1)
+            mean_emb = torch.mean(
+                output["cell_embs"][:, (2 if self.depth_atinput else 1) :, :].clone(),
+                dim=1,
+            )
             loss_adv = self.grad_reverse_discriminator_loss(mean_emb, batch_idx)
             total_loss += loss_adv * self.class_scale / 16
             losses.update({"adv_batch": loss_adv})

@@ -481,24 +481,28 @@ class Attention:
         comp_attn: bool = False,
         apply_softmax: bool = False,
         sum_heads: bool = True,
+        additional_tokens: int = 0,
     ):
         """
         Initialize the Attention class.
 
         Args:
             gene_dim (int): The dimension of the gene.
-            comp_attn (bool, optional): Whether to compute attention. Defaults to False.
+            additional_tokens (int): The number of additional tokens to add.
+            comp_attn (bool): Whether to compute attention or it is precomputed
+            apply_softmax (bool): Whether to apply softmax to the attention.
+            sum_heads (bool): Whether to sum the heads.
         """
         self.data: Optional[Tensor] = None
         self.gene_dim: int = gene_dim
+        self.additional_tokens: int = additional_tokens
         self.div: Optional[Tensor] = None
-        self.comp_attn: bool = comp_attn
         self.apply_softmax: bool = apply_softmax
         self.sum_heads: bool = sum_heads
-        self.shared_qk: bool = True
+        self.comp_attn: bool = True
 
     def add(self, *args, **kwargs) -> None:
-        if self.shared_qk:
+        if self.comp_attn:
             self.add_qk(*args, **kwargs)
         else:
             self.add_attn(*args, **kwargs)
@@ -510,12 +514,16 @@ class Attention:
         Aggregate the attention or data based on the comp_attn flag.
 
         Args:
-            x (List[Tensor]): List of tensors to aggregate.
+            x (List[Tensor]): List of tensors to aggregate. Tensor of size (batch, seq_len, 2, heads, emb)
             pos (Tensor): Position tensor.
         """
         if self.data is None:
             self.data = torch.zeros(
-                [self.gene_dim, self.gene_dim, len(x) * x[0].shape[3]],
+                [
+                    self.gene_dim + self.additional_tokens,
+                    self.gene_dim + self.additional_tokens,
+                    len(x) * x[0].shape[3],
+                ],
                 device=pos.device,
                 dtype=torch.float32,
             )
@@ -553,11 +561,19 @@ class Attention:
         """
         if self.data is None:
             self.data = torch.zeros(
-                [len(x), self.gene_dim] + list(x[0].shape[2:]), device=pos.device
+                [len(x), self.gene_dim + self.additional_tokens] + list(x[0].shape[2:]),
+                device=pos.device,
             )
-            self.div = torch.zeros(self.gene_dim, device=pos.device)
+            self.div = torch.zeros(
+                self.gene_dim + self.additional_tokens, device=pos.device
+            )
         for i in range(x[0].shape[0]):
-            loc = torch.cat([torch.arange(8, device=pos.device), pos[i] + 8]).int()
+            loc = torch.cat(
+                [
+                    torch.arange(self.additional_tokens, device=pos.device),
+                    pos[i] + self.additional_tokens,
+                ]
+            ).int()
             for j in range(len(x)):
                 self.data[j, loc, :, :, :] += x[j][i]
             self.div[loc] += 1
@@ -569,7 +585,7 @@ class Attention:
         Returns:
             Optional[np.ndarray]: The aggregated attention or data.
         """
-        if self.shared_qk:
+        if self.comp_attn:
             if self.data is None:
                 return None
             # shape is (layers, genes, qkv, heads, emb)
