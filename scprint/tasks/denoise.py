@@ -95,7 +95,6 @@ class Denoiser:
                 adata, flavor="seurat_v3", n_top_genes=self.max_len, span=0.99
             )
             self.genelist = adata.var.index[adata.var.highly_variable]
-            print(len(self.genelist))
 
         col = Collator(
             organisms=model.organisms,

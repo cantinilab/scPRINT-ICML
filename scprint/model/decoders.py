@@ -60,7 +60,6 @@ class ExprDecoder(nn.Module):
         )
         self.pred_var_zero = nn.Linear(d_model, 3 if zinb else 1)
         self.zinb = zinb
-        print(self.nfirst_tokens_to_skip)
 
     def forward(
         self, x: Tensor, req_depth: Optional[Tensor] = None

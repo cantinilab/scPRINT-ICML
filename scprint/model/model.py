@@ -732,7 +732,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
     def on_fit_start(self):
         """@see pl.LightningModule"""
-        print("on_fit_start")
         if type(self.transformer) is FlashTransformer:
             for encoder_layers in self.transformer.blocks:
                 encoder_layers.set_seq_parallel(True)
@@ -1247,7 +1246,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 self.trainer.strategy.barrier()
 
     def test_step(self, *args, **kwargs):
-        print("step")
         pass
 
     def on_test_epoch_end(self):

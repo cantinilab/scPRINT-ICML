@@ -243,7 +243,6 @@ class GNInfer:
             if self.num_genes > 10_000 and not self.comp_attn:
                 raise ValueError("need less genes for a non-shared-qk version")
             if not self.comp_attn:
-                print(len(self.curr_genes))
                 model.attn.gene_dim = (
                     len(set(self.curr_genes) & set(model.genes))
                     + model.attn.additional_tokens
