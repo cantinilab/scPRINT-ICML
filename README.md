@@ -146,7 +146,9 @@ pip install -e benGRN[dev]
 
 ## Reproducibility 
 
-__To reproduce the paper please use the version `1.6.4` and you will have to git clone the repo to have access to all the pre-training functionalities!__
+__To reproduce the paper please use the version / tag `1.6.4` and you will have to git clone the repo to have access to all the pre-training functionalities!__
+
+⚠️ the `test()` function of the pretraining runs (by default run every N epochs) is using a 2 hardcoded test datasets paths (see https://github.com/cantinilab/scPRINT/issues/12). Replace them with your own if you want to use the test functions.
 
 ## Usage
 
