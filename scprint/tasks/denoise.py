@@ -227,7 +227,8 @@ class Denoiser:
 
 def default_benchmark(
     model: Any,
-    default_dataset: str = FILE_DIR + "/../../data/r4iCehg3Tw5IbCLiCIbl.h5ad",
+    default_dataset: str = FILE_DIR
+    + "/../../data/gNNpgpo6gATjuxTE7CCp.h5ad",  # r4iCehg3Tw5IbCLiCIbl
     max_len: int = 5000,
 ):
     """
