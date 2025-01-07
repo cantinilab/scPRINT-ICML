@@ -1,0 +1,140 @@
+lfdcxjx8/checkpoints/epoch=7-step=160000.ckpt
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃           Test metric           ┃          DataLoader 0           ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ denoise/reco2full_vs_noisy2full │       0.20926052331924438       │
+│        emb_lung/ct_class        │       0.5900994539260864        │
+│          emb_lung/scib          │       0.5271273851394653        │
+│        emb_panc/ct_class        │       0.7862287759780884        │
+│          emb_panc/scib          │       0.5043514966964722        │
+│         grn_gwps/auprc          │      0.043001893907785416       │
+│       grn_gwps/auprc_omni       │      0.042493466287851334       │
+│       grn_gwps/auprc_self       │      0.048009179532527924       │
+│          grn_gwps/epr           │        4.092961311340332        │
+│        grn_gwps/epr_omni        │        4.103940486907959        │
+│        grn_gwps/epr_self        │        4.657761573791504        │
+│         grn_omni/auprc          │      0.0017730634426698089      │
+│      grn_omni/auprc_class       │      0.002126321429386735       │
+│          grn_omni/epr           │       2.8539607524871826        │
+│       grn_omni/epr_class        │       3.2710866928100586        │
+│         grn_omni/tf_enr         │               0.0               │
+│      grn_omni/tf_enr_class      │               0.0               │
+│      grn_omni/tf_targ_enr       │       27.010149002075195        │
+│   grn_omni/tf_targ_enr_class    │        23.85883140563965        │
+│         grn_sroy/auprc          │       0.11276840418577194       │
+│       grn_sroy/auprc_omni       │       0.11364220082759857       │
+│       grn_sroy/auprc_self       │       0.1102791428565979        │
+│          grn_sroy/epr           │       1.0745930671691895        │
+│        grn_sroy/epr_omni        │       1.1890848875045776        │
+│        grn_sroy/epr_self        │       1.3522005081176758        │
+└─────────────────────────────────┴─────────────────────────────────┘
+
+4acu0xym/checkpoints/epoch=8-step=180000.ckpt # issue with label assignment
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃           Test metric           ┃          DataLoader 0           ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ denoise/reco2full_vs_noisy2full │       0.23643910884857178       │
+│        emb_lung/ct_class        │       0.1115516871213913        │
+│          emb_lung/scib          │       0.4642427861690521        │
+│        emb_panc/ct_class        │     0.00012208521366119385      │
+│          emb_panc/scib          │       0.40401044487953186       │
+│         grn_gwps/auprc          │       0.04108797013759613       │
+│       grn_gwps/auprc_omni       │      0.040636565536260605       │
+│       grn_gwps/auprc_self       │       0.04232344776391983       │
+│          grn_gwps/epr           │       3.9784905910491943        │
+│        grn_gwps/epr_omni        │       3.8307747840881348        │
+│        grn_gwps/epr_self        │        4.388638019561768        │
+│         grn_omni/auprc          │      0.0016621340764686465      │
+│      grn_omni/auprc_class       │      0.0017104443395510316      │
+│          grn_omni/epr           │        2.093945264816284        │
+│       grn_omni/epr_class        │        2.875380516052246        │
+│         grn_omni/tf_enr         │               0.0               │
+│      grn_omni/tf_enr_class      │               0.0               │
+│      grn_omni/tf_targ_enr       │       22.464319229125977        │
+│   grn_omni/tf_targ_enr_class    │       16.367053985595703        │
+│         grn_sroy/auprc          │       0.10097289830446243       │
+│       grn_sroy/auprc_omni       │       0.10042957961559296       │
+│       grn_sroy/auprc_self       │       0.10678253322839737       │
+│          grn_sroy/epr           │       0.7631073594093323        │
+│        grn_sroy/epr_omni        │       0.6503756046295166        │
+│        grn_sroy/epr_self        │       1.2708507776260376        │
+└─────────────────────────────────┴─────────────────────────────────┘
+
+wykks7s8/checkpoints/epoch\=12-step\=260000.ckpt
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃          Test metric            ┃           DataLoader 0          ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━─────━━━━━━━━━━━━━━━━━━━━┩
+│ denoise/reco2full_vs_noisy2full │       0.21566700084703738       │
+│        emb_lung/ct_class        │       0.0000000000000000        │
+│          emb_lung/scib          │        0.5193938897994905       │
+│        emb_panc/ct_class        │       0.0000000000000000        │
+│          emb_panc/scib          │       0.4325964937587264        │
+│          grn_gwps/auprc         │      0.03555353358387947        │
+│       grn_gwps/auprc_omni       │      0.03800468519330025        │
+│       grn_gwps/auprc_self       │      0.04004685953259468        │
+│           grn_gwps/epr          │       2.4587526321411133        │
+│        grn_gwps/epr_omni        │       2.9572060108184814        │
+│        grn_gwps/epr_self        │       3.3440558910369873        │
+│          grn_omni/auprc         │      0.00163943856023252        │
+│       grn_omni/auprc_class      │     0.0017495364882051945       │
+│           grn_omni/epr          │       4.261288642883301         │
+│        grn_omni/epr_class       │       3.671144485473633         │
+│         grn_omni/tf_enr         │              0.0                │
+│      grn_omni/tf_enr_class      │              0.0                │
+│       grn_omni/tf_targ_enr      │       12.152390480041504        │
+│    grn_omni/tf_targ_enr_class   │       11.03217887878418         │
+│          grn_sroy/auprc         │      0.11771143227815628        │
+│       grn_sroy/auprc_omni       │      0.11732150614261627        │
+│       grn_sroy/auprc_self       │      0.10992954671382904        │
+│           grn_sroy/epr          │       0.8958569765090942        │
+│        grn_sroy/epr_omni        │       0.8959620594978333        │
+│        grn_sroy/epr_self        │       1.0869399309158325        │
+└─────────────────────────────────┴─────────────────────────────────┘
+
+scprint_v2/36cumz4z/checkpoints/epoch\=5-step\=120000.ckpt
+{'emb_lung/scib': 0.5130011157254181, 'emb_lung/ct_class': 0.3397974040457235, 
+ 'emb_panc/scib': 0.4278497585839409, 'emb_panc/ct_class': 0.21914296178732756, 
+ 'denoise/reco2full_vs_noisy2full': 0.14044468254063253, 
+ 'grn_gwps/auprc_self': 0.03448777335214395, 'grn_gwps/epr_self': 3.6413624253758217, 
+ 'grn_gwps/auprc_omni': 0.031775576752727214, 'grn_gwps/epr_omni': 3.2545423785918866, 
+ 'grn_gwps/auprc': 0.030003376108297168, 'grn_gwps/epr': 2.5318763722784277}
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric         ┃        DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│       grn_omni/auprc       │   0.0014416000340133905    │
+│    grn_omni/auprc_class    │   0.0013803967740386724    │
+│        grn_omni/epr        │     1.5662932395935059     │
+│     grn_omni/epr_class     │     2.265284776687622      │
+│      grn_omni/tf_enr       │            0.0             │
+│   grn_omni/tf_enr_class    │            0.0             │
+│    grn_omni/tf_targ_enr    │     15.692710876464844     │
+│ grn_omni/tf_targ_enr_class │     10.181925773620605     │
+│       grn_sroy/auprc       │    0.12004516273736954     │
+│    grn_sroy/auprc_omni     │    0.11273835599422455     │
+│    grn_sroy/auprc_self     │     0.0979037806391716     │
+│        grn_sroy/epr        │     1.9856641292572021     │
+│     grn_sroy/epr_omni      │      2.18110990524292      │
+│     grn_sroy/epr_self      │     0.8578354716300964     │
+└────────────────────────────┴────────────────────────────┘
+
+pwmnabx3/checkpoints/epoch\=9-step\=340000.ckpt
+{'emb_lung/scib': 0.5455848050752554, 'emb_lung/ct_class': 0.7202379108453889, 'emb_panc/scib': 0.482891509
+219322, 'emb_panc/ct_class': 0.8133927481382005, 'denoise/reco2full_vs_noisy2full': 0.22008027834709676}
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        Test metric         ┃        DataLoader 0        ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│       grn_omni/auprc       │   0.0018242821097373962    │
+│    grn_omni/auprc_class    │   0.0019829333759844303    │
+│        grn_omni/epr        │     1.8257248401641846     │
+│     grn_omni/epr_class     │     3.352729558944702      │
+│      grn_omni/tf_enr       │            4.0             │
+│   grn_omni/tf_enr_class    │            0.0             │
+│    grn_omni/tf_targ_enr    │     33.827693939208984     │
+│ grn_omni/tf_targ_enr_class │     30.443740844726562     │
+│       grn_sroy/auprc       │    0.10195836424827576     │
+│    grn_sroy/auprc_omni     │    0.10181723535060883     │
+│    grn_sroy/auprc_self     │    0.10354398936033249     │
+│        grn_sroy/epr        │     0.8899765610694885     │
+│     grn_sroy/epr_omni      │     1.130431056022644      │
+│     grn_sroy/epr_self      │     1.268110752105713      │
+└────────────────────────────┴────────────────────────────┘  
