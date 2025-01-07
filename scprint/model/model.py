@@ -73,8 +73,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         label_decoders: Optional[Dict[str, Dict[int, str]]] = None,
         zinb: bool = True,
         lr: float = 0.0001,
-        optim="adamW",  # TODEL
-        weight_decay=0.01,  # TODEL
+        # optim="adamW",  # TODEL
+        # weight_decay=0.01,  # TODEL
         **flash_attention_kwargs,
     ):
         """
@@ -1527,13 +1527,16 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             gen_iters(:obj:`int`): An integer representing the number of generation iterations.
             classes(:obj:`Tensor`): An optional tensor representing the classes. It has a shape of (batch,).
         """
+        if req_depth is not None and self.depth_atinput:
+            cell_embs = torch.cat([cell_embs[:, :1, :], cell_embs[:, 2:, :]], dim=1)
         encoding = self._encoder(
             cell_embs=cell_embs,
             gene_pos=gene_pos,
-            req_depth=None,
+            req_depth=req_depth if self.depth_atinput else None,
         )
         if self.cell_transformer:
             gene_encoding = encoding[:, self.cell_embs_count :, :]
+            cell_embs = encoding[:, : self.cell_embs_count, :]
             transformer_output = self.transformer(gene_encoding, x_kv=cell_embs)
             transformer_output = torch.cat([cell_embs, transformer_output], dim=1)
         else:
@@ -1541,7 +1544,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         output = self._decoder(
             transformer_output,
             depth_mult=depth_mult,
-            req_depth=req_depth,
+            req_depth=req_depth if not self.depth_atinput else None,
             **decoder_kwargs,
         )
         if self.cell_transformer:

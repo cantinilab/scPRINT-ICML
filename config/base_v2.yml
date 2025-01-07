@@ -61,9 +61,9 @@ data:
     - NCBITaxon:10090
   gene_position_tolerance: 10_000
   gene_embeddings: ./data/main/gene_embeddings.parquet
-  collection_name: scPRINT-V2 full #scPRINT-V2 (good quality)
+  collection_name: scPRINT-V2 full #scPRINT-V2 (good quality) # scPRINT-V2 (some)
   how: random expr
-  max_len: 3200
+  max_len: 2200
   pin_memory: True
   prefetch_factor: 3
   metacell_mode: 0.2
@@ -73,7 +73,7 @@ data:
   train_oversampling_per_epoch: 0.15
   validation_split: 0.05
   test_split: 0.02
-  batch_size: 32
+  batch_size: 64
   num_workers: 20
   hierarchical_clss:
     - cell_type_ontology_term_id
