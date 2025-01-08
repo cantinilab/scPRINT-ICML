@@ -2,10 +2,10 @@
 import copy
 import os
 from functools import partial
-from pathlib import Path
 
 # from galore_torch import GaLoreAdamW
 from math import factorial
+from pathlib import Path
 from typing import Dict, Optional
 
 import lightning as L
@@ -18,18 +18,19 @@ from scipy.sparse import load_npz
 from torch import Tensor, nn, optim
 
 # from .linear_transformer import FastTransformerEncoderWrapper as FastTransformer
-from . import decoders, encoders, loss, utils, fsq
+from . import decoders, encoders, fsq, loss, utils
 
 try:
     from simpler_flash import FlashTransformer
 except ImportError:
     print("Warning: simpler_flash not found, using default transformer")
     FlashTransformer = None
-from .loss import grad_reverse
-from .utils import WeightedMasker, simple_masker
+import datetime
 
 import torch.distributed
-import datetime
+
+from .loss import grad_reverse
+from .utils import WeightedMasker, simple_masker
 
 FILEDIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -713,7 +714,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             # optimizer = GaLoreAdamW(param_groups, lr=self.hparams.lr)
         else:
             raise ValueError(f"Unknown optimizer: {self.optim}")
-        if self.lr_reduce_monitor == None:
+        if self.lr_reduce_monitor is None:
             print("no lr reduce factor")
             return [optimizer]
         lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(

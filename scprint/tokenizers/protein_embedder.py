@@ -1,11 +1,12 @@
 import os
 
 import pandas as pd
+import torch
 from torch import load
+from transformers import AutoModel, AutoTokenizer
 
 from scprint.utils.utils import run_command
-import torch
-from transformers import AutoModel, AutoTokenizer
+
 # https://github.com/agemagician/ProtTrans
 # https://academic.oup.com/nargab/article/4/1/lqac012/6534363
 

@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch import Tensor, nn
 from torch.autograd import Function
 from torch.distributions import NegativeBinomial
+
 # import ot
 # from ot.gromov import gromov_wasserstein, fused_gromov_wasserstein
 
@@ -371,37 +372,37 @@ def grad_reverse(x: Tensor, lambd: float = 1.0) -> Tensor:
     return GradReverse.apply(x, lambd)
 
 
-def embedding_independence(cell_embs, min_batch_size=32):
-    """
-    Compute independence loss between different embeddings using both
-    batch-wise decorrelation (when batch is large enough) and
-    within-sample dissimilarity
-
-    Args:
-        cell_embs: tensor of shape [batch_size, num_embeddings, embedding_dim]
-        min_batch_size: minimum batch size for using correlation-based loss
-    """
-    batch_size, num_embeddings, emb_dim = cell_embs.shape
-    # typically, 64*8*256
-    if batch_size >= min_batch_size:
-        # Compute pairwise distance matrices for each batch
-        gw_loss = 0
-        cell_embs = cell_embs.transpose(0, 1)
-        for i in range(num_embeddings):
-            # Get embeddings for this batch
-            embs = cell_embs[i]  # [num_embeddings, emb_dim]
-
-            # Compute GW distance between the two groups
-            # Compute GW distance between the two groups
-            # This measures structural differences between random subsets
-            gw_dist = gromov_wasserstein_distance(dist_mat1_np, dist_mat2_np, p, q)
-            gw_loss += torch.tensor(gw_dist, device=cell_embs.device)
-
-        return gw_loss / batch_size
-
-    else:
-        # Batch too small - use only within-sample dissimilarity
-        return compute_within_sample_loss(cell_embs)
+# def embedding_independence(cell_embs, min_batch_size=32):
+#    """
+#    Compute independence loss between different embeddings using both
+#    batch-wise decorrelation (when batch is large enough) and
+#    within-sample dissimilarity
+#
+#    Args:
+#        cell_embs: tensor of shape [batch_size, num_embeddings, embedding_dim]
+#        min_batch_size: minimum batch size for using correlation-based loss
+#    """
+#    batch_size, num_embeddings, emb_dim = cell_embs.shape
+#    # typically, 64*8*256
+#    if batch_size >= min_batch_size:
+#        # Compute pairwise distance matrices for each batch
+#        gw_loss = 0
+#        cell_embs = cell_embs.transpose(0, 1)
+#        for i in range(num_embeddings):
+#            # Get embeddings for this batch
+#            embs = cell_embs[i]  # [num_embeddings, emb_dim]
+#
+#            # Compute GW distance between the two groups
+#            # Compute GW distance between the two groups
+#            # This measures structural differences between random subsets
+#            gw_dist = gromov_wasserstein_distance(dist_mat1_np, dist_mat2_np, p, q)
+#            gw_loss += torch.tensor(gw_dist, device=cell_embs.device)
+#
+#        return gw_loss / batch_size
+#
+#    else:
+#        # Batch too small - use only within-sample dissimilarity
+#        return within_sample(cell_embs)
 
 
 def within_sample(cell_embs):

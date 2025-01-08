@@ -1,15 +1,16 @@
-import sys
 import os
-import torch
-from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast
-import scanpy as sc
+import sys
+
 import numpy as np
+import scanpy as sc
+import torch
+from scdataloader import Collator
+from scdataloader.data import SimpleAnnDataset
+from torch.cuda.amp import autocast
+from torch.utils.data import DataLoader
 
 # Adjust these imports to your project structure
 from scprint import scPrint
-from scdataloader.data import SimpleAnnDataset
-from scdataloader import Collator
 
 
 def extract_gene_embeddings(

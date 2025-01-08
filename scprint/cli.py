@@ -7,12 +7,12 @@ from lightning.pytorch.callbacks import (
     StochasticWeightAveraging,
 )
 from lightning.pytorch.cli import LightningCLI, _get_short_description
+from lightning.pytorch.strategies import DDPStrategy
+from lightning.pytorch.trainer import Trainer
 
 from scprint.tasks import Denoiser, Embedder, GNInfer
 
 from .trainer import TrainingMode
-from lightning.pytorch.strategies import DDPStrategy
-from lightning.pytorch.trainer import Trainer
 
 TASKS = [("embed", Embedder), ("gninfer", GNInfer), ("denoise", Denoiser)]
 

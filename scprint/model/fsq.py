@@ -7,10 +7,9 @@ from typing import List, Optional
 
 import torch
 import torch.nn as nn
-from torch.nn import Module
+from einops import pack, rearrange, unpack
 from torch import Tensor, int32
-
-from einops import rearrange, pack, unpack
+from torch.nn import Module
 
 # helper functions
 

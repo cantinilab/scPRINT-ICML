@@ -36,7 +36,7 @@ class TrainingMode(Callback):
         optim: str = "adamW",
         weight_decay: float = 0.01,
         zinb_and_mse: bool = False,
-        var_context_length: bool = True,
+        var_context_length: bool = False,
         name="",
     ):
         """

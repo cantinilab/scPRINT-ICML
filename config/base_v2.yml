@@ -37,6 +37,8 @@ scprint_training:
   do_ecs: True
   do_cce: True
   mask_ratio: ["TF"]
+  zinb_and_mse: True
+  var_context_length: True
 
 model:
   dropout: 0.1
