@@ -195,14 +195,16 @@ def make_adata(
                         ax=axs[i // 2, i % 2],
                         show=False,
                     )
-                acc = ""
-                if "_pred_" in col and col.split("conv_")[-1] in accuracy:
-                    acc = " (accuracy: {:.2f})".format(accuracy[col.split("conv_")[-1]])
-                axs[i // 2, i % 2].set_title(col + " UMAP" + acc)
-                if "cell_type" in col:
-                    axs[i // 2, i % 2].legend(fontsize="x-small")
-                axs[i // 2, i % 2].set_xlabel("UMAP1")
-                axs[i // 2, i % 2].set_ylabel("UMAP2")
+                    acc = ""
+                    if "pred_" in col and col.split("conv_")[-1] in accuracy:
+                        acc = " (accuracy: {:.2f})".format(
+                            accuracy[col.split("conv_")[-1]]
+                        )
+                    axs[i // 2, i % 2].set_title(col + " UMAP" + acc)
+                    if "cell_type" in col:
+                        axs[i // 2, i % 2].legend(fontsize="x-small")
+                    axs[i // 2, i % 2].set_xlabel("UMAP1")
+                    axs[i // 2, i % 2].set_ylabel("UMAP2")
             else:
                 for i, col in enumerate(color):
                     sc.pl.umap(
@@ -211,14 +213,16 @@ def make_adata(
                         ax=axs[i % 2],
                         show=False,
                     )
-                acc = ""
-                if "_pred_" in col and col.split("conv_")[-1] in accuracy:
-                    acc = " (accuracy: {:.2f})".format(accuracy[col.split("conv_")[-1]])
-                axs[i % 2].set_title(col + " UMAP" + acc)
-                if "cell_type" in col:
-                    axs[i % 2].legend(fontsize="x-small")
-                axs[i % 2].set_xlabel("UMAP1")
-                axs[i % 2].set_ylabel("UMAP2")
+                    acc = ""
+                    if "pred_" in col and col.split("conv_")[-1] in accuracy:
+                        acc = " (accuracy: {:.2f})".format(
+                            accuracy[col.split("conv_")[-1]]
+                        )
+                    axs[i % 2].set_title(col + " UMAP" + acc)
+                    if "cell_type" in col:
+                        axs[i % 2].legend(fontsize="x-small")
+                    axs[i % 2].set_xlabel("UMAP1")
+                    axs[i % 2].set_ylabel("UMAP2")
         else:
             color = [
                 (
@@ -238,7 +242,7 @@ def make_adata(
                         show=False,
                     )
                     acc = ""
-                    if "_pred_" in col and col.split("conv_")[-1] in accuracy:
+                    if "pred_" in col and col.split("conv_")[-1] in accuracy:
                         acc = " (accuracy: {:.2f})".format(
                             accuracy[col.split("conv_")[-1]]
                         )
