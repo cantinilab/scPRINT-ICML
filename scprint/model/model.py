@@ -18,7 +18,7 @@ from scipy.sparse import load_npz
 from torch import Tensor, nn, optim
 
 # from .linear_transformer import FastTransformerEncoderWrapper as FastTransformer
-from . import decoders, encoders, loss, utils
+from . import decoders, encoders, loss, utils, fsq
 
 try:
     from simpler_flash import FlashTransformer
@@ -73,6 +73,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         label_decoders: Optional[Dict[str, Dict[int, str]]] = None,
         zinb: bool = True,
         lr: float = 0.0001,
+        compress_class_dim: Optional[Dict[str, int]] = None,
         # optim="adamW",  # TODEL
         # weight_decay=0.01,  # TODEL
         **flash_attention_kwargs,
@@ -349,6 +350,13 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         for i, dec in self.cls_decoders.items():
             torch.nn.init.constant_(dec.out_layer.bias, -0.13)
 
+        if compress_class_dim is not None:
+            self.bottleneck_mlps = torch.nn.ModuleDict()
+            for k, v in compress_class_dim.items():
+                self.bottleneck_mlps[k] = fsq.FSQ(levels=[2] * v, dim=self.d_model)
+        else:
+            self.bottleneck_mlps = None
+
     def on_load_checkpoint(self, checkpoints):
         for name, clss in self.cls_decoders.items():
             size = checkpoints["state_dict"][
@@ -505,6 +513,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             pass
 
         output["cell_embs"] = self.get_cell_embs(transformer_output)
+        if self.bottleneck_mlps is not None:
+            for i, clsname in enumerate(self.classes):
+                loc = i + (2 if self.depth_atinput else 1)
+                output["cell_embs"][:, loc, :] = self.bottleneck_mlps[clsname](
+                    output["cell_embs"][:, loc, :]
+                )[0]
         output["cell_emb"] = torch.mean(output["cell_embs"].clone(), dim=1)
         if len(self.classes) > 0 and do_class:
             output.update(
