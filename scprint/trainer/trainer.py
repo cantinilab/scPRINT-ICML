@@ -33,6 +33,7 @@ class TrainingMode(Callback):
         do_adv_batch: bool = False,
         run_full_forward: bool = False,
         lr: float = 0.001,
+        dropout: float = 0.1,
         optim: str = "adamW",
         weight_decay: float = 0.01,
         zinb_and_mse: bool = False,
@@ -77,6 +78,7 @@ class TrainingMode(Callback):
             class_embd_diss_scale (float): Scaling factor for the class embedding dissimilarity loss. Defaults to 0.1.
             zinb_and_mse (bool): Whether to use ZINB and MSE loss. Defaults to False.
             var_context_length (bool): Whether to use variable context length. Defaults to False.
+            dropout (float): Dropout rate for the model. Defaults to 0.1.
         """
         super().__init__()
         self.do_denoise = do_denoise
@@ -112,6 +114,7 @@ class TrainingMode(Callback):
         self.class_embd_diss_scale = class_embd_diss_scale
         self.zinb_and_mse = zinb_and_mse
         self.var_context_length = var_context_length
+        self.dropout = dropout
 
     def __repr__(self):
         return (
@@ -147,7 +150,8 @@ class TrainingMode(Callback):
             f"test_every={self.test_every}, "
             f"class_embd_diss_scale={self.class_embd_diss_scale}, "
             f"zinb_and_mse={self.zinb_and_mse}, "
-            f"var_context_length={self.var_context_length})"
+            f"var_context_length={self.var_context_length}, "
+            f"dropout={self.dropout})"
         )
 
     def setup(self, trainer, model, stage=None):
@@ -185,4 +189,5 @@ class TrainingMode(Callback):
         model.class_embd_diss_scale = self.class_embd_diss_scale
         model.zinb_and_mse = self.zinb_and_mse
         model.var_context_length = self.var_context_length
+        model.dropout = self.dropout
         # model.configure_optimizers()

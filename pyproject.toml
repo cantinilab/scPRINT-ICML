@@ -20,7 +20,7 @@ dependencies = [
     "pandas>=2.0.0",
     "leidenalg>=0.10.0",
     "scikit-misc>=0.5.0",
-    "scDataLoader>=1.6.4",
+    "scDataLoader>=1.7.0",
     "GRnnData>=1.1.4",
     "BenGRN>=1.2.4",
     "owlready2>=0.36",
@@ -50,6 +50,7 @@ dependencies = [
     "sparse>=0.15.4",
     "bio>=1.7.1",
     "future>=1.0.0",
+    "simpler_flash>=1.0.5",
 ]
 
 [project.optional-dependencies]

@@ -1,5 +1,6 @@
 # from scprint.base.base_model import BaseModel
 import copy
+import datetime
 import os
 from functools import partial
 
@@ -11,24 +12,16 @@ from typing import Dict, Optional
 import lightning as L
 import pandas as pd
 import torch
+import torch.distributed
 from huggingface_hub import PyTorchModelHubMixin
 from lightning.pytorch.callbacks.lr_finder import LearningRateFinder
 from lightning.pytorch.tuner.lr_finder import _LRCallback
 from scipy.sparse import load_npz
+from simpler_flash import FlashTransformer
 from torch import Tensor, nn, optim
 
 # from .linear_transformer import FastTransformerEncoderWrapper as FastTransformer
 from . import decoders, encoders, fsq, loss, utils
-
-try:
-    from simpler_flash import FlashTransformer
-except ImportError:
-    print("Warning: simpler_flash not found, using default transformer")
-    FlashTransformer = None
-import datetime
-
-import torch.distributed
-
 from .loss import grad_reverse
 from .utils import WeightedMasker, simple_masker
 
@@ -59,7 +52,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         layers_cls: list[int] = [],
         classes: Dict[str, int] = {},
         labels_hierarchy: Dict[str, Dict[int, list[int]]] = {},
-        dropout: float = 0.2,
+        dropout: float = 0.1,
         transformer: str = "fast",
         expr_emb_style: str = "continuous",  # "binned_pos", "cont_pos"
         domain_spec_batchnorm: str = "None",
@@ -69,14 +62,12 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         pred_embedding: list[str] = [],
         cell_emb_style: str = "cls",
         cell_specific_blocks: bool = False,
-        depth_atinput: bool = False,
+        depth_atinput: bool = True,
         freeze_embeddings: bool = True,
         label_decoders: Optional[Dict[str, Dict[int, str]]] = None,
         zinb: bool = True,
         lr: float = 0.0001,
         compress_class_dim: Optional[Dict[str, int]] = None,
-        # optim="adamW",  # TODEL
-        # weight_decay=0.01,  # TODEL
         **flash_attention_kwargs,
     ):
         """
@@ -104,9 +95,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             freeze_embeddings (bool, optional): Whether to freeze the embeddings during training. Defaults to True.
             label_decoders (Optional[Dict[str, Dict[int, str]]], optional): Label decoders to use for plotting the UMAP during validations. Defaults to None.
             zinb (bool, optional): Whether to use Zero-Inflated Negative Binomial distribution. Defaults to True.
-            lr (float, optional): Learning rate. Defaults to 0.0001.
-            optim (str, optional): Optimizer type. Defaults to "adamW".
-            weight_decay (float, optional): Weight decay for the optimizer. Defaults to 0.01.
             **flash_attention_kwargs (dict): Additional keyword arguments for the model. see @flashformer.py
 
         Notes:
@@ -122,6 +110,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.noise = [0.6]
         self.do_cce = False
         self.cce_temp = 0.2
+        self.lr = 0.0001
         self.cce_scale = 0.05
         self.do_ecs = False
         self.ecs_threshold = 0.4
@@ -152,7 +141,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.test_every = 20
         self.lr_reduce_monitor = "val_loss"
         self.name = ""
-        self.lr = lr
         self.lrfinder_steps = 0
         self.doplot = True
         self.get_attention_layer = []
@@ -271,8 +259,9 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         )
 
         # compute tensor for mat_labels_hierarchy
-        if "strict_loading" in flash_attention_kwargs:
-            flash_attention_kwargs.pop("strict_loading")
+        for i in ["strict_loading", "optim", "weight_decay", "lr"]:
+            if i in flash_attention_kwargs:
+                flash_attention_kwargs.pop(i)
         # Transformer
         # Linear
         if transformer == "linear":
@@ -393,8 +382,13 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         if "classes" in checkpoints["hyper_parameters"]:
             if self.classes != checkpoints["hyper_parameters"]["classes"]:
                 print("changing the number of classes, could lead to issues")
-            self.classes = checkpoints["hyper_parameters"]["classes"]
-            self.label_counts = checkpoints["hyper_parameters"]["label_counts"]
+
+            if "label_counts" in checkpoints["hyper_parameters"]:
+                self.label_counts = checkpoints["hyper_parameters"]["label_counts"]
+                self.classes = checkpoints["hyper_parameters"]["classes"]
+            else:
+                self.label_counts = checkpoints["hyper_parameters"]["classes"]
+                self.classes = list(self.label_counts.keys())
             self.label_decoders = checkpoints["hyper_parameters"]["label_decoders"]
             self.labels_hierarchy = checkpoints["hyper_parameters"]["labels_hierarchy"]
             for k, v in self.labels_hierarchy.items():

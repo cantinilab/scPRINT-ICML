@@ -405,7 +405,7 @@ class WeightedMasker:
     def __init__(
         self,
         genes: list[str],
-        TFs: list[str] = utils.fileToList(FILEDIR + "../../data/main/TFs.txt"),
+        TFs: list[str] = utils.fileToList(FILEDIR + "/../../data/main/TFs.txt"),
         inv_weight: float = 0.2,
     ):
         """

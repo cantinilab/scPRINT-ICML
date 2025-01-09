@@ -113,10 +113,6 @@ def test_base():
     datamodule = DataModule(
         collection_name="test dataset",
         gene_embeddings=os.path.join(os.path.dirname(__file__), "test_emb.parquet"),
-        all_clss=[
-            "sex_ontology_term_id",
-            "organism_ontology_term_id",
-        ],
         hierarchical_clss=[],
         organisms=["NCBITaxon:9606"],  # , "NCBITaxon:10090"],
         how="most expr",
@@ -125,7 +121,7 @@ def test_base():
         # how much more you will see the most present vs less present category
         weight_scaler=10,
         clss_to_weight=["sex_ontology_term_id"],
-        clss_to_pred=[
+        clss_to_predict=[
             "sex_ontology_term_id",
             "organism_ontology_term_id",
         ],
