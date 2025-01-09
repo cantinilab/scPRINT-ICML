@@ -95,7 +95,6 @@ class Denoiser:
                 adata, flavor="seurat_v3", n_top_genes=self.max_len, span=0.99
             )
             self.genelist = adata.var.index[adata.var.highly_variable]
-            print(len(self.genelist))
 
         col = Collator(
             organisms=model.organisms,
@@ -166,8 +165,6 @@ class Denoiser:
                     ]
                 )
             # reco[true==0] = 0
-            # import pdb
-            # pdb.set_trace()
             # reco[reco!=0] = 2
             # corr_coef = np.corrcoef(
             #    np.vstack([reco[true!=0], noisy[true!=0], true[true!=0]])
@@ -230,7 +227,8 @@ class Denoiser:
 
 def default_benchmark(
     model: Any,
-    default_dataset: str = FILE_DIR + "/../../data/r4iCehg3Tw5IbCLiCIbl.h5ad",
+    default_dataset: str = FILE_DIR
+    + "/../../data/gNNpgpo6gATjuxTE7CCp.h5ad",  # r4iCehg3Tw5IbCLiCIbl
     max_len: int = 5000,
 ):
     """

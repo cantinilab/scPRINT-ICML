@@ -52,14 +52,14 @@ class GNInfer:
         known_grn: Optional[any] = None,
         symmetrize: bool = False,
         doplot: bool = True,
-        shared_qk: bool = True,
+        comp_attn: bool = True,
         max_cells: int = 0,
         forward_mode: str = "none",
         genes: List[str] = [],
         loc: str = "./",
         dtype: torch.dtype = torch.float16,
         locname: str = "",
-        add_emb_in_model: int = 8,
+        add_emb_in_model: bool = False,
     ):
         """
         GNInfer a class to infer gene regulatory networks from a dataset using a scPRINT model.
@@ -87,7 +87,7 @@ class GNInfer:
             loc (str, optional): Location to save results. Defaults to "./".
             dtype (torch.dtype, optional): Data type for computations. Defaults to torch.float16.
             locname (str, optional): Name for the location. Defaults to an empty string.
-            add_emb_in_model (int, optional): Number of embeddings to add in the model. Defaults to 8.
+            add_emb_in_model (bool, optional): Whether to add cell embeddings in the grn. Defaults to False.
 
         """
         self.batch_size = batch_size
@@ -123,7 +123,7 @@ class GNInfer:
         self.curr_genes = None
         self.drop_unexpressed = drop_unexpressed
         self.precision = precision
-        self.shared_qk = shared_qk
+        self.comp_attn = comp_attn
         self.add_emb_in_model = add_emb_in_model
         if self.filtration != "none" and self.head_agg == "none":
             raise ValueError("filtration must be 'none' when head_agg is 'none'")
@@ -144,18 +144,18 @@ class GNInfer:
         # Add at least the organism you are working with
         if self.layer is None:
             self.layer = list(range(model.nlayers))
+        self.n_cell_embs = model.attn.additional_tokens
+
         subadata = self.predict(model, adata, self.layer, cell_type)
         adjacencies = self.aggregate(model.attn.get(), model.genes)
         if self.head_agg == "none":
             return self.save(
-                adjacencies[self.add_emb_in_model :, self.add_emb_in_model :, :],
+                adjacencies[self.n_cell_embs :, self.n_cell_embs :, :],
                 subadata,
             )
         else:
             return self.save(
-                self.filter(adjacencies)[
-                    self.add_emb_in_model :, self.add_emb_in_model :
-                ],
+                self.filter(adjacencies)[self.n_cell_embs :, self.n_cell_embs :],
                 subadata,
             )
 
@@ -238,19 +238,19 @@ class GNInfer:
         device = model.device.type
 
         # reparametrize the attn process
-        model.attn.shared_qk = self.shared_qk
+        model.attn.comp_attn = self.comp_attn
         if self.how != "random expr":
-            if self.num_genes > 10_000 and not self.shared_qk:
+            if self.num_genes > 10_000 and not self.comp_attn:
                 raise ValueError("need less genes for a non-shared-qk version")
-            if not self.shared_qk:
-                print(len(self.curr_genes))
+            if not self.comp_attn:
                 model.attn.gene_dim = (
-                    len(set(self.curr_genes) & set(model.genes)) + self.add_emb_in_model
+                    len(set(self.curr_genes) & set(model.genes))
+                    + model.attn.additional_tokens
                 )
                 model.attn.apply_softmax = self.preprocess == "softmax"
-        elif not self.shared_qk:
+        elif not self.comp_attn:
             raise ValueError(
-                "full attention (i.e. shared_qk=Fale) is not supported for random expr"
+                "full attention (i.e. comp_attn=Fale) is not supported for random expr"
             )
         with torch.no_grad(), torch.autocast(device_type=device, dtype=self.dtype):
             for batch in tqdm(dataloader):
@@ -270,14 +270,14 @@ class GNInfer:
         return subadata
 
     def aggregate(self, attn, genes):
-        if self.head_agg == "mean_full" or not self.shared_qk:
+        if self.head_agg == "mean_full" or not self.comp_attn:
             self.curr_genes = [i for i in genes if i in self.curr_genes]
             return attn.detach().cpu().numpy()
         badloc = torch.isnan(attn.sum((0, 2, 3, 4)))
         attn = attn[:, ~badloc, :, :, :]
         badloc = badloc.detach().cpu().numpy()
         self.curr_genes = (
-            np.array(self.curr_genes)[~badloc[self.add_emb_in_model :]]
+            np.array(self.curr_genes)[~badloc[self.n_cell_embs :]]
             if self.how == "random expr"
             else [i for i in genes if i in self.curr_genes]
         )
@@ -383,7 +383,7 @@ class GNInfer:
 
             loc = np.isin(self.curr_genes, gt.index)
             self.curr_genes = np.array(self.curr_genes)[loc]
-            adj = adj[self.add_emb_in_model :, self.add_emb_in_model :][loc][:, loc]
+            adj = adj[self.n_cell_embs :, self.n_cell_embs :][loc][:, loc]
             adj[gt.values != 1] = 0
             adj = scipy.sparse.csr_matrix(adj)
         elif self.filtration == "tmfg":
@@ -533,7 +533,8 @@ def default_benchmark(
                 )
                 joblib.dump(clf_omni, "clf_omni.pkl")
                 metrics["omni_classifier"] = m
-            grn.varp["GRN"] = grn.varp["all"][:, :, clf_omni.coef_[0] > 0].mean(-1)
+            coef = clf_omni.coef_[0] if clf_omni.coef_.shape[0] == 1 else clf_omni.coef_
+            grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1)
             if spe == "human":
                 metrics["omni_" + da + "_" + gt + "_base"] = BenGRN(
                     grn, do_auc=True, doplot=True
@@ -556,7 +557,8 @@ def default_benchmark(
                     return_full=False,
                 )
                 metrics["self_classifier"] = m
-            grn.varp["GRN"] = grn.varp["all"][:, :, clf_self.coef_[0] > 0].mean(-1).T
+            coef = clf_self.coef_[0] if clf_self.coef_.shape[0] == 1 else clf_self.coef_
+            grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1).T
             metrics["self_" + da + "_" + gt] = BenGRN(
                 grn, do_auc=True, doplot=False
             ).compare_to(other=preadata)
@@ -573,15 +575,12 @@ def default_benchmark(
                 metrics["mean_" + da + "_" + "chip"] = BenGRN(
                     grn, do_auc=True, doplot=False
                 ).compare_to(other=preadata)
-                grn.varp["GRN"] = (
-                    grn.varp["all"][:, :, clf_omni.coef_[0] > 0].mean(-1).T
-                )
+                grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1).T
                 metrics["omni_" + da + "_" + "chip"] = BenGRN(
                     grn, do_auc=True, doplot=False
                 ).compare_to(other=preadata)
-                grn.varp["GRN"] = (
-                    grn.varp["all"][:, :, clf_self.coef_[0] > 0].mean(-1).T
-                )
+
+                grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1).T
                 metrics["self_" + da + "_" + "chip"] = BenGRN(
                     grn, do_auc=True, doplot=False
                 ).compare_to(other=preadata)
@@ -591,15 +590,11 @@ def default_benchmark(
                 metrics["mean_" + da + "_" + "ko"] = BenGRN(
                     grn, do_auc=True, doplot=False
                 ).compare_to(other=preadata)
-                grn.varp["GRN"] = (
-                    grn.varp["all"][:, :, clf_omni.coef_[0] > 0].mean(-1).T
-                )
+                grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1).T
                 metrics["omni_" + da + "_" + "ko"] = BenGRN(
                     grn, do_auc=True, doplot=False
                 ).compare_to(other=preadata)
-                grn.varp["GRN"] = (
-                    grn.varp["all"][:, :, clf_self.coef_[0] > 0].mean(-1).T
-                )
+                grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1).T
                 metrics["self_" + da + "_" + "ko"] = BenGRN(
                     grn, do_auc=True, doplot=False
                 ).compare_to(other=preadata)
@@ -658,7 +653,8 @@ def default_benchmark(
             return_full=False,
             use_col="gene_name",
         )
-        grn.varp["GRN"] = grn.varp["all"][:, :, clf_omni.coef_[0] > 0].mean(-1).T
+        coef = clf_omni.coef_[0] if clf_omni.coef_.shape[0] == 1 else clf_omni.coef_
+        grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1).T
         metrics["omni"] = BenGRN(grn, do_auc=True, doplot=False).compare_to(other=adata)
         metrics["omni_classifier"] = m
         grn.var.index = grn.var["symbol"]
@@ -679,7 +675,8 @@ def default_benchmark(
             return_full=False,
             use_col="ensembl_id",
         )
-        grn.varp["GRN"] = grn.varp["all"][:, :, clf_self.coef_[0] > 0].mean(-1).T
+        coef = clf_self.coef_[0] if clf_self.coef_.shape[0] == 1 else clf_self.coef_
+        grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1).T
         metrics["self"] = BenGRN(grn, do_auc=True, doplot=False).compare_to(other=adata)
         metrics["self_classifier"] = m
         grn.var.index = grn.var["symbol"]
@@ -749,7 +746,8 @@ def default_benchmark(
                 )
                 joblib.dump(clf_omni, "clf_omni.pkl")
                 metrics["classifier"] = m
-            grn.varp["GRN"] = grn.varp["all"][:, :, clf_omni.coef_[0] > 0].mean(-1)
+            coef = clf_omni.coef_[0] if clf_omni.coef_.shape[0] == 1 else clf_omni.coef_
+            grn.varp["GRN"] = grn.varp["all"][:, :, coef > 0].mean(-1)
             metrics[celltype + "_scprint_class"] = BenGRN(
                 grn, doplot=False
             ).scprint_benchmark()

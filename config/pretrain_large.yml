@@ -1,7 +1,8 @@
 trainer:
   strategy: ddp_find_unused_parameters_true
 model:
-  nhead: 4
+  nhead: 8
+  # num_heads_kv: 2
   nlayers: 16 #used to be 12
   layers_cls: [512]
   d_model: 512

@@ -1,20 +1,19 @@
 import os
 import urllib.request
 
+import lamindb as ln
 import numpy as np
 import pytest
 import scanpy as sc
 import torch
-from scdataloader import Preprocessor, DataModule
+from lightning.pytorch import Trainer
+from scdataloader import DataModule, Preprocessor
 from scdataloader.utils import populate_my_ontology
 
 from scprint import scPrint
 from scprint.base import NAME
 from scprint.tasks import Denoiser, Embedder, GNInfer
 from scprint.trainer import TrainingMode
-
-import lamindb as ln
-from lightning.pytorch import Trainer
 
 
 def test_base():
@@ -114,10 +113,6 @@ def test_base():
     datamodule = DataModule(
         collection_name="test dataset",
         gene_embeddings=os.path.join(os.path.dirname(__file__), "test_emb.parquet"),
-        all_clss=[
-            "sex_ontology_term_id",
-            "organism_ontology_term_id",
-        ],
         hierarchical_clss=[],
         organisms=["NCBITaxon:9606"],  # , "NCBITaxon:10090"],
         how="most expr",
@@ -126,7 +121,7 @@ def test_base():
         # how much more you will see the most present vs less present category
         weight_scaler=10,
         clss_to_weight=["sex_ontology_term_id"],
-        clss_to_pred=[
+        clss_to_predict=[
             "sex_ontology_term_id",
             "organism_ontology_term_id",
         ],

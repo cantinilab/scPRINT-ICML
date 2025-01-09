@@ -1,6 +1,7 @@
 import gc
 import json
 import math
+import os.path
 from collections import Counter
 from typing import Dict, List, Optional, Union
 
@@ -11,14 +12,18 @@ import scanpy as sc
 import torch
 from anndata import AnnData
 from matplotlib import pyplot as plt
+from scdataloader.utils import translate
 from torch import Tensor
 from torch.distributions import Gamma, Poisson
 
+from .. import utils
 from ..tasks import cell_emb as embbed_task
 from ..tasks import denoise as denoise_task
 from ..tasks import grn as grn_task
 
 # from scprint.tasks import generate
+
+FILEDIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def make_adata(
@@ -182,21 +187,42 @@ def make_adata(
                 int(len(color) / 2), 2, figsize=(24, len(color) * 4)
             )
             plt.subplots_adjust(wspace=1)
-            for i, col in enumerate(color):
-                sc.pl.umap(
-                    adata,
-                    color=col,
-                    ax=axs[i // 2, i % 2],
-                    show=False,
-                )
-                acc = ""
-                if "_pred_" in col and col.split("conv_")[-1] in accuracy:
-                    acc = " (accuracy: {:.2f})".format(accuracy[col.split("conv_")[-1]])
-                axs[i // 2, i % 2].set_title(col + " UMAP" + acc)
-                if "cell_type" in col:
-                    axs[i // 2, i % 2].legend(fontsize="x-small")
-                axs[i // 2, i % 2].set_xlabel("UMAP1")
-                axs[i // 2, i % 2].set_ylabel("UMAP2")
+            if len(color) > 2:
+                for i, col in enumerate(color):
+                    sc.pl.umap(
+                        adata,
+                        color=col,
+                        ax=axs[i // 2, i % 2],
+                        show=False,
+                    )
+                    acc = ""
+                    if "pred_" in col and col.split("conv_")[-1] in accuracy:
+                        acc = " (accuracy: {:.2f})".format(
+                            accuracy[col.split("conv_")[-1]]
+                        )
+                    axs[i // 2, i % 2].set_title(col + " UMAP" + acc)
+                    if "cell_type" in col:
+                        axs[i // 2, i % 2].legend(fontsize="x-small")
+                    axs[i // 2, i % 2].set_xlabel("UMAP1")
+                    axs[i // 2, i % 2].set_ylabel("UMAP2")
+            else:
+                for i, col in enumerate(color):
+                    sc.pl.umap(
+                        adata,
+                        color=col,
+                        ax=axs[i % 2],
+                        show=False,
+                    )
+                    acc = ""
+                    if "pred_" in col and col.split("conv_")[-1] in accuracy:
+                        acc = " (accuracy: {:.2f})".format(
+                            accuracy[col.split("conv_")[-1]]
+                        )
+                    axs[i % 2].set_title(col + " UMAP" + acc)
+                    if "cell_type" in col:
+                        axs[i % 2].legend(fontsize="x-small")
+                    axs[i % 2].set_xlabel("UMAP1")
+                    axs[i % 2].set_ylabel("UMAP2")
         else:
             color = [
                 (
@@ -206,20 +232,25 @@ def make_adata(
                 )
                 for i in labels
             ]
-            fig, axs = plt.subplots(len(color), 1, figsize=(16, len(color) * 8))
-            for i, col in enumerate(color):
-                sc.pl.umap(
-                    adata,
-                    color=col,
-                    ax=axs[i],
-                    show=False,
-                )
-                acc = ""
-                if "_pred_" in col and col.split("conv_")[-1] in accuracy:
-                    acc = " (accuracy: {:.2f})".format(accuracy[col.split("conv_")[-1]])
-                axs[i].set_title(col + " UMAP" + acc)
-                axs[i].set_xlabel("UMAP1")
-                axs[i].set_ylabel("UMAP2")
+            if len(color) > 1:
+                fig, axs = plt.subplots(len(color), 1, figsize=(16, len(color) * 8))
+                for i, col in enumerate(color):
+                    sc.pl.umap(
+                        adata,
+                        color=col,
+                        ax=axs[i],
+                        show=False,
+                    )
+                    acc = ""
+                    if "pred_" in col and col.split("conv_")[-1] in accuracy:
+                        acc = " (accuracy: {:.2f})".format(
+                            accuracy[col.split("conv_")[-1]]
+                        )
+                    axs[i].set_title(col + " UMAP" + acc)
+                    axs[i].set_xlabel("UMAP1")
+                    axs[i].set_ylabel("UMAP2")
+            else:
+                fig = sc.pl.umap(adata, color=color, show=False, return_fig=True)
         plt.show()
     else:
         fig = None
@@ -280,7 +311,7 @@ def _init_weights(
                 )
 
 
-def downsample_profile(mat: Tensor, dropout: float, method="new"):
+def downsample_profile(mat: Tensor, dropout: float, method="new", randsamp=False):
     """
     This function downsamples the expression profile of a given single cell RNA matrix.
 
@@ -306,6 +337,8 @@ def downsample_profile(mat: Tensor, dropout: float, method="new"):
     # Randomly drop on average N counts to each element of expression using a heavy tail Gaussian distribution
     # here we try to get the scale of the distribution so as to remove the right number of counts from each gene
     # https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02601-5#:~:text=Zero%20measurements%20in%20scRNA%2Dseq,generation%20of%20scRNA%2Dseq%20data.
+    if randsamp:
+        dropout = torch.rand(mat.shape, device=mat.device) * dropout
     if method == "old":
         totcounts = mat.sum(1)
         batch = mat.shape[0]
@@ -368,34 +401,48 @@ def simple_masker(
     return torch.rand(shape) < mask_ratio
 
 
-def weighted_masker(
-    shape: list[int],
-    mask_ratio: float = 0.15,
-    mask_prob: Optional[Union[torch.Tensor, np.ndarray]] = None,  # n_features
-    mask_value: int = 1,
-) -> torch.Tensor:
-    """
-    Randomly mask a batch of data.
+class WeightedMasker:
+    def __init__(
+        self,
+        genes: list[str],
+        TFs: list[str] = utils.fileToList(FILEDIR + "/../../data/main/TFs.txt"),
+        inv_weight: float = 0.2,
+    ):
+        """
+        Randomly mask a batch of data.
 
-    Args:
-        shape (list[int]): The shape of the data.
-        mask_ratio (float): The ratio of genes to mask, default to 0.15.
-        mask_value (int): The value to mask with, default to -1.
-        pad_value (int): The value of padding in the values, will be kept unchanged.
+        Args:
+            genes (list[str]): The list of genes the model might see.
+            TFs (list[str]): The list of TFs the model can drop.
+            inv_weight (float): How likely it is to drop a non TF compared to a TF.
 
-    Returns:
-        torch.Tensor: A tensor of masked data.
-    """
-    mask = []
-    for _ in range(shape[0]):
-        m = np.zeros(shape[1])
-        loc = np.random.choice(
-            a=shape[1], size=int(shape[1] * mask_ratio), replace=False, p=mask_prob
+        Returns:
+            torch.Tensor: A tensor of masked data.
+        """
+        TFs = set(TFs)
+        self.weights = torch.tensor(
+            [1 if gene in TFs else inv_weight for gene in genes]
         )
-        m[loc] = mask_value
-        mask.append(m)
+        self.max_to_drop = (self.weights == inv_weight).sum()
+        self.inv_weight = inv_weight
 
-    return torch.Tensor(np.array(mask)).to(torch.bool)
+    def __call__(self, ids: torch.Tensor, mask_ratio: float = 1.0) -> torch.Tensor:
+        if self.inv_weight == 0:
+            if mask_ratio * ids.shape[1] > self.max_to_drop:
+                raise ValueError("Cannot drop more than max_to_drop")
+        # Create a tensor of probabilities for each position
+        probs = self.weights.expand(ids.shape[0], -1).to(ids.device)
+        ids = ids.to(torch.int64)
+        probs = torch.gather(
+            probs, 1, ids
+        )  # Get probabilities only for the indices in ids
+        probs = probs / probs.sum(1, keepdim=True)
+
+        # Sample from multinomial for each item in batch
+        num_samples = int(ids.shape[1] * mask_ratio)
+        mask = torch.zeros_like(ids, dtype=torch.bool)
+        sampled = torch.multinomial(probs, num_samples, replacement=False)
+        return mask.scatter_(1, sampled, True)
 
 
 def zinb_sample(
@@ -431,41 +478,6 @@ def zinb_sample(
     return samp_
 
 
-def translate(
-    val: Union[str, list, set, dict, Counter], t: str = "cell_type_ontology_term_id"
-):
-    """
-    translate This function translates the given value based on the specified type.
-
-    Args:
-        val (str/list/set/dict/Counter): The value to be translated.
-        t (str, optional): The type of translation to be performed. Defaults to "cell_type_ontology_term_id".
-
-    Returns:
-        dict: A dictionary with the translated values.
-    """
-    if t == "cell_type_ontology_term_id":
-        obj = bt.CellType.filter().df().set_index("ontology_id")
-    elif t == "assay_ontology_term_id":
-        obj = bt.ExperimentalFactor.filter().df().set_index("ontology_id")
-    elif t == "tissue_ontology_term_id":
-        obj = bt.Tissue.filter().df().set_index("ontology_id")
-    elif t == "disease_ontology_term_id":
-        obj = bt.Disease.filter().df().set_index("ontology_id")
-    elif t == "self_reported_ethnicity_ontology_term_id":
-        obj = bt.Ethnicity.filter().df().set_index("ontology_id")
-    else:
-        return None
-    if type(val) is str:
-        if val == "unknown":
-            return {val: val}
-        return {val: obj.loc[val]["name"]}
-    elif type(val) is list or type(val) is set:
-        return {i: obj.loc[i]["name"] if i != "unknown" else i for i in set(val)}
-    elif type(val) is dict or type(val) is Counter:
-        return {obj.loc[k]["name"] if k != "unknown" else k: v for k, v in val.items()}
-
-
 class Attention:
     def __init__(
         self,
@@ -473,24 +485,28 @@ class Attention:
         comp_attn: bool = False,
         apply_softmax: bool = False,
         sum_heads: bool = True,
+        additional_tokens: int = 0,
     ):
         """
         Initialize the Attention class.
 
         Args:
             gene_dim (int): The dimension of the gene.
-            comp_attn (bool, optional): Whether to compute attention. Defaults to False.
+            additional_tokens (int): The number of additional tokens to add.
+            comp_attn (bool): Whether to compute attention or it is precomputed
+            apply_softmax (bool): Whether to apply softmax to the attention.
+            sum_heads (bool): Whether to sum the heads.
         """
         self.data: Optional[Tensor] = None
         self.gene_dim: int = gene_dim
+        self.additional_tokens: int = additional_tokens
         self.div: Optional[Tensor] = None
-        self.comp_attn: bool = comp_attn
         self.apply_softmax: bool = apply_softmax
         self.sum_heads: bool = sum_heads
-        self.shared_qk: bool = True
+        self.comp_attn: bool = True
 
     def add(self, *args, **kwargs) -> None:
-        if self.shared_qk:
+        if self.comp_attn:
             self.add_qk(*args, **kwargs)
         else:
             self.add_attn(*args, **kwargs)
@@ -502,12 +518,16 @@ class Attention:
         Aggregate the attention or data based on the comp_attn flag.
 
         Args:
-            x (List[Tensor]): List of tensors to aggregate.
+            x (List[Tensor]): List of tensors to aggregate. Tensor of size (batch, seq_len, 2, heads, emb)
             pos (Tensor): Position tensor.
         """
         if self.data is None:
             self.data = torch.zeros(
-                [self.gene_dim, self.gene_dim, len(x) * x[0].shape[3]],
+                [
+                    self.gene_dim + self.additional_tokens,
+                    self.gene_dim + self.additional_tokens,
+                    len(x) * x[0].shape[3],
+                ],
                 device=pos.device,
                 dtype=torch.float32,
             )
@@ -545,11 +565,19 @@ class Attention:
         """
         if self.data is None:
             self.data = torch.zeros(
-                [len(x), self.gene_dim] + list(x[0].shape[2:]), device=pos.device
+                [len(x), self.gene_dim + self.additional_tokens] + list(x[0].shape[2:]),
+                device=pos.device,
             )
-            self.div = torch.zeros(self.gene_dim, device=pos.device)
+            self.div = torch.zeros(
+                self.gene_dim + self.additional_tokens, device=pos.device
+            )
         for i in range(x[0].shape[0]):
-            loc = torch.cat([torch.arange(8, device=pos.device), pos[i] + 8]).int()
+            loc = torch.cat(
+                [
+                    torch.arange(self.additional_tokens, device=pos.device),
+                    pos[i] + self.additional_tokens,
+                ]
+            ).int()
             for j in range(len(x)):
                 self.data[j, loc, :, :, :] += x[j][i]
             self.div[loc] += 1
@@ -561,7 +589,7 @@ class Attention:
         Returns:
             Optional[np.ndarray]: The aggregated attention or data.
         """
-        if self.shared_qk:
+        if self.comp_attn:
             if self.data is None:
                 return None
             # shape is (layers, genes, qkv, heads, emb)
@@ -573,7 +601,9 @@ class Attention:
             return self.data
 
 
-def test(model: torch.nn.Module, name: str, filedir: str) -> None:
+def test(
+    model: torch.nn.Module, name: str, filedir: str, do_class: bool = True
+) -> None:
     """
     Test the given model on the full set of benchmarks and save the results to JSON files.
 
@@ -587,7 +617,7 @@ def test(model: torch.nn.Module, name: str, filedir: str) -> None:
     """
     metrics = {}
     res = embbed_task.default_benchmark(
-        model, default_dataset="lung", do_class=True, coarse=False
+        model, default_dataset="lung", do_class=do_class, coarse=False
     )
     f = open("metrics_" + name + ".json", "a")
     f.write(json.dumps({"embed_lung": res}, indent=4))
@@ -597,12 +627,14 @@ def test(model: torch.nn.Module, name: str, filedir: str) -> None:
             "emb_lung/scib": float(res["scib"]["Total"]),
             "emb_lung/ct_class": float(
                 res["classif"]["cell_type_ontology_term_id"]["accuracy"]
+                if do_class
+                else 0
             ),
         }
     )
     print(metrics)
     res = embbed_task.default_benchmark(
-        model, default_dataset="pancreas", do_class=True, coarse=False
+        model, default_dataset="pancreas", do_class=do_class, coarse=False
     )
     f = open("metrics_" + name + ".json", "a")
     f.write(json.dumps({"embed_panc": res}, indent=4))
@@ -612,6 +644,8 @@ def test(model: torch.nn.Module, name: str, filedir: str) -> None:
             "emb_panc/scib": float(res["scib"]["Total"]),
             "emb_panc/ct_class": float(
                 res["classif"]["cell_type_ontology_term_id"]["accuracy"]
+                if do_class
+                else 0
             ),
         }
     )

@@ -29,7 +29,7 @@ trainer:
         noise:
           - 0.3
         do_cce: True
-        # cce_sim: 0.4
+        # cce_temp: 0.4
         do_ecs: True
         # ecs_threshold: 0.6
         # ecs_scale: 10.0
@@ -120,7 +120,7 @@ data:
     - self_reported_ethnicity_ontology_term_id
     - sex_ontology_term_id
     - organism_ontology_term_id
-  all_clss:
+  clss_to_predict:
     - cell_type_ontology_term_id
     # - tissue_ontology_term_id
     - disease_ontology_term_id

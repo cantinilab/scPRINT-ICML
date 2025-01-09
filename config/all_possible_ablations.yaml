@@ -1,0 +1,127 @@
+###### 
+scprint_training:
+  run_full_forward: True
+  noise: [0.6]
+  do_denoise: True
+  class_embd_diss_scale: 0.1
+  do_generate: True
+  do_cce: True
+
+###### TF masking
+scprint_training:
+  mask_ratio: ["TF"]
+
+##### 
+scprint_training:
+  do_ecs: True
+  
+##### Test cheap vs esm2 vs learnt
+
+
+##### untrained model’s performance
+trainer:
+  limit_train_batches: 1
+  limit_val_batches: 200
+  limit_test_batches: 1 # we don't perform tests this way
+  max_epochs: 2
+scprint_training:
+  test_every: 1
+
+##### Test attention bias faded vs none (MAKE SURE RIGHT DIR (T))
+model:
+  attn_bias: full
+
+##### 
+model:
+  dropout: 0
+  num_heads_kv: 4
+
+#####
+model:
+  cell_specific_blocks: False
+
+#####
+model:
+  freeze_embeddings: False
+  
+#####
+model:
+  normalization: sum
+
+##### no zinb vs mse vs both
+model:
+  zinb: False
+
+##### no zinb vs mse vs both
+scprint_training: 
+  zinb_and_mse: True
+
+#### 
+model:
+  depth_atinput: True
+
+#### 
+scprint_training:
+  do_mvc: True
+
+##### need to run them until the end
+data:
+  organisms:
+    - NCBITaxon:9606
+    - NCBITaxon:10090
+  collection_name: scPRINT-V2 (good quality)
+
+##### need to run them until the end
+data:
+  organisms:
+    - NCBITaxon:9606
+    - NCBITaxon:10090
+  collection_name: scPRINT-V2 full
+
+#####
+data:
+  gene_position_tolerance: 1000
+
+#####
+data:
+  do_gene_pos: False
+
+#####
+data:
+  weight_scaler: 3000
+
+##### Test multi context vs fixed
+scprint_training:
+  var_context_length: True
+data:
+  max_len: 3200
+
+######
+data:
+  metacell_mode: 0.2
+
+##### 
+data:
+  clss_to_weight:
+    - clust_cell_type
+    - tissue_ontology_term_id
+    - disease_ontology_term_id
+    - age_group
+    - assay_ontology_term_id
+    - self_reported_ethnicity_ontology_term_id
+    - sex_ontology_term_id
+    - organism_ontology_term_id
+    - cell_culture
+    - nnz
+
+##### 
+data:
+  clss_to_weight:
+    - cell_type_ontology_term_id
+    - tissue_ontology_term_id
+    - disease_ontology_term_id
+    - age_group
+    - assay_ontology_term_id
+    - self_reported_ethnicity_ontology_term_id
+    - sex_ontology_term_id
+    - organism_ontology_term_id
