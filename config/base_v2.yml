@@ -50,6 +50,7 @@ model:
   cell_specific_blocks: True
   fused_dropout_add_ln: False
   prenorm: True
+  depth_atinput: False
   fused_mlp: False
   fused_bias_fc: False
   drop_path_rate: 0
@@ -57,6 +58,15 @@ model:
   normalization: log
   pred_embedding:
     - cell_type_ontology_term_id
+  #compress_class_dim:
+  #  cell_type_ontology_term_id: 18 # 20
+  #  tissue_ontology_term_id: 8
+  #  disease_ontology_term_id: 14
+  #  age_group: 8
+  #  assay_ontology_term_id: 5 #6
+  #  self_reported_ethnicity_ontology_term_id: 10
+  #  sex_ontology_term_id: 2
+  #  organism_ontology_term_id: 8
 data:
   organisms:
     - NCBITaxon:9606
@@ -76,7 +86,7 @@ data:
   validation_split: 0.05
   test_split: 0.02
   batch_size: 64
-  num_workers: 16
+  num_workers: 20
   hierarchical_clss:
     - cell_type_ontology_term_id
     - tissue_ontology_term_id

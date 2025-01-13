@@ -962,7 +962,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 expression,
                 clss,
                 batch_idx,
-                "cell_emb" in output,
+                ("cell_emb" in output) and do_ecs,
                 do_adv_cls & do_cls,
                 do_adv_batch & do_cls,
                 do_mse=self.zinb_and_mse,
@@ -1037,10 +1037,13 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 target=expression,
             )
             if do_mse:
-                loss_expr += loss.mse(
-                    input=torch.log(output["mean"] + 1)
-                    * (1 - torch.sigmoid(output["zero_logits"])),
-                    target=torch.log(expression + 1),
+                loss_expr += (
+                    loss.mse(
+                        input=torch.log(output["mean"] + 1)
+                        * (1 - torch.sigmoid(output["zero_logits"])),
+                        target=torch.log(expression + 1),
+                    )
+                    / 10  # scale to make it more similar to the zinb
                 )
         elif "disp" in output:
             loss_expr = loss.nb(
