@@ -30,7 +30,7 @@ trainer:
         monitor: val_loss
         save_top_k: 3
         save_last: True
-limit_train_batches: 20000:
+scprint_training:
   run_full_forward: False
   # noise: [0.6]
   do_ecs: False
@@ -39,7 +39,7 @@ limit_train_batches: 20000:
   do_generate: True
   test_every: 5
   do_cce: False
-  mask_ratio: 0.3 #["TF"]
+  mask_ratio: [0.3] #["TF"]
 model:
   dropout: 0.1
   num_heads_kv: 4

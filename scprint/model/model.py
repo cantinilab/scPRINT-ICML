@@ -422,6 +422,11 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                         ],
                         valid_genes=self.genes,
                     )
+            os.environ["MY_SLURM_RESTART_COUNT"] = str(
+                int(os.getenv("SLURM_RESTART_COUNT", 0))
+                + 1
+                + int(os.getenv("MY_SLURM_RESTART_COUNT", 0))
+            )
         except RuntimeError as e:
             if "scPrint is not attached to a `Trainer`." in str(e):
                 print("RuntimeError caught: scPrint is not attached to a `Trainer`.")
