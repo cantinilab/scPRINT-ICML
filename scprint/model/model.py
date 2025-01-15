@@ -633,40 +633,23 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             bias=bias if self.attn_bias != "none" else None,
             bias_layer=list(range(self.nlayers - 1)),
         )
+        if len(get_attention_layer) > 0:
+            transformer_output, qkvs = transformer_output
         if self.cell_transformer:
-            cell_output = self.cell_transformer(
-                cell_encoding,
-                x_kv=transformer_output[0]
-                if len(get_attention_layer) > 0
-                else transformer_output,
-            )
+            cell_output = self.cell_transformer(cell_encoding, x_kv=transformer_output)
             transformer_output = torch.cat([cell_output, transformer_output], dim=1)
         # if not provided we will mult by the current expression sum
         depth_mult = expression.sum(1) if depth_mult is None else depth_mult
-        if len(get_attention_layer) > 0:
-            transformer_output, qkvs = transformer_output
-            return (
-                self._decoder(
-                    transformer_output,
-                    depth_mult,
-                    get_gene_emb,
-                    do_sample,
-                    do_mvc,
-                    do_class,
-                    req_depth=req_depth if not self.depth_atinput else None,
-                ),
-                qkvs,
-            )
-        else:
-            return self._decoder(
-                transformer_output,
-                depth_mult,
-                get_gene_emb,
-                do_sample,
-                do_mvc,
-                do_class,
-                req_depth=req_depth if not self.depth_atinput else None,
-            )
+        res = self._decoder(
+            transformer_output,
+            depth_mult,
+            get_gene_emb,
+            do_sample,
+            do_mvc,
+            do_class,
+            req_depth=req_depth if not self.depth_atinput else None,
+        )
+        return (res, qkvs) if len(get_attention_layer) > 0 else res
 
     def configure_optimizers(self):
         """@see pl.LightningModule"""
