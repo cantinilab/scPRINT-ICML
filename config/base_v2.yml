@@ -39,7 +39,6 @@ scprint_training:
   mask_ratio: ["TF"]
   zinb_and_mse: True
   var_context_length: True
-
 model:
   dropout: 0.1
   num_heads_kv: 2

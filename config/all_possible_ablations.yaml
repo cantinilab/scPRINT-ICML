@@ -1,8 +1,103 @@
-### init
-sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml
+### 1 init
 
-### same but just changing the seed
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml
+1892372
+kxtm7jtn
+9zdkhlej
+
+##### 2 change the weight scaling
+data:
+  weight_scaler: 3000
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.weight_scaler 3000
+1892510
+hzjj21j9
+fopg9qt2
+
+#### 3 change how many cells per group before changing groups (twice as less)
+trainer:
+  limit_train_batches: 10000
+  reload_dataloaders_every_n_epochs: 5
+  max_epochs: 80
+scprint_training:
+  test_every: 5
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --trainer.limit_train_batches 10000 --trainer.reload_dataloaders_every_n_epochs 5 --trainer.max_epochs 40
+1899680
+f2jxue8p
+mh40wxyo
+
+### 4 without replacement
+
+data:
+  replacement: False
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.replacement False
+1899260
+oj8i38ur
+mygjp7yc
+
+#### 5 only scale on cell groups:
+data:
+  clss_to_weight:
+    - clust_cell_type
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.clss_to_weight '[\"clust_cell_type\"]'
+1890999
+h9mvhutk
+fvp021zs
+
+### 6 only scale on nnz:
+data:
+  clss_to_weight:
+    - nnz
+    - clust_cell_type
+  weight_scaler: 500
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.clss_to_weight [\"nnz\"\,\"clust_cell_type\"] --data.weight_scaler 500"
+1899455
+jmhazi02
+sftebnir
+
+### 7 same but just changing the seed
+
 sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --seed_everything 52
+1892748
+vl9a2ts7
+5n582rb8
+
+#### 8 do just some humans
+data:
+  collection_name: scPRINT-V2 (100 random humans)
+  organisms:
+    - NCBITaxon:9606
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.collection_name \"scPRINT-V2 (100 random humans)\" --data.organisms '[\"NCBITaxon:9606\"]'
+1900679
+jqzb61j3
+1x19dtk2
+
+#### 9 do just good quality
+data:
+  collection_name: scPRINT-V2 (good quality)
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.collection_name \"scPRINT-V2 (good quality)\"
+1899738
+rrv1nn8j
+5w46eeyv
+
+#### 10 change how many cells per group before changing groups (twice as less)
+trainer:
+  limit_train_batches: 5000
+  reload_dataloaders_every_n_epochs: 3
+  max_epochs: 80
+scprint_training:
+  test_every: 5
+data:
+  weight_scaler: 20
+  replacement: False
+
+--trainer.limit_train_batches 5000 --trainer.reload_dataloaders_every_n_epochs 3 --trainer.max_epochs 80 --scprint_training.test_every 5 --data.weight_scaler 20 --data.replacement False
 
 ###### 2 noise
 scprint_training:
@@ -132,20 +227,6 @@ scprint_training:
 
 sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.do_mvc True
 
-#### 22 do just some humans
-data:
-  collection_name: scPRINT-V2 (100 random humans)
-  organisms:
-    - NCBITaxon:9606
-
-sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.collection_name \"scPRINT-V2 (100 random humans)\" --data.organisms '[\"NCBITaxon:9606\"]'
-
-#### 23 do just good quality
-data:
-  collection_name: scPRINT-V2 (good quality)
-
-sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.collection_name \"scPRINT-V2 (good quality)\"
-
 ##### 24 change gene position tolerence
 data:
   gene_position_tolerance: 1000
@@ -157,37 +238,6 @@ data:
   do_gene_pos: False
 
 sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.do_gene_pos False
-
-##### 26 change the weight scaling
-data:
-  weight_scaler: 3000
-
-sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.weight_scaler 3000
-
-#### 27 change how many cells per group before changing groups (twice as less)
-trainer:
-  limit_train_batches: 10000
-  reload_dataloaders_every_n_epochs: 5
-  max_epochs: 80
-scprint_training:
-  test_every: 5
-
-sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --trainer.limit_train_batches 10000 --trainer.limit_val_batches 2 --trainer.reload_dataloaders_every_n_epochs 5 --trainer.max_epochs 40
-
-### 28 without replacement
-
-data:
-  replacement: False
-
-sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.replacement False
-
-
-#### 28 only scale on cell groups:
-data:
-  clss_to_weight:
-    - clust_cell_type
-
-sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.clss_to_weight '[\"clust_cell_type\"]'
 
 ### 29 versus only scale on cells
 data:
@@ -208,22 +258,6 @@ data:
     - sex_ontology_term_id
     - organism_ontology_term_id
     - nnz
-
-
-
-### 31 only scale on nnz:
-data:
-  clss_to_weight:
-    - nnz
-
-sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.clss_to_weight '[\"nnz\"]'
-
-### 32 only scale on organism and assay
-data:
-  clss_to_weight:
-    - assay_ontology_term_id
-    - sex_ontology_term_id
-    - organism_ontology_term_id
 
 ##### 33 Test multi context vs fixed
 scprint_training:
