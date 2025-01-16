@@ -821,6 +821,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         total_count = batch["depth"]
         clss = batch.get("class", None)
         batch_idx = batch.get("dataset", None)
+        print(gene_pos.shape)
 
         total_loss = 0
         losses = {}
@@ -1137,6 +1138,10 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_closure):
         """@see pl.LightningModule"""
         # update params
+        print(f"Allocated: {torch.cuda.memory_allocated() / 1024**2} MB")
+        print(f"Max Allocated: {torch.cuda.max_memory_allocated() / 1024**2} MB")
+        print(f"Reserved: {torch.cuda.memory_reserved() / 1024**2} MB")
+        print(f"Max Reserved: {torch.cuda.max_memory_reserved() / 1024**2} MB")
         optimizer.step(closure=optimizer_closure)
 
         # manually warm up lr without a scheduler
