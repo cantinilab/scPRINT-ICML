@@ -821,7 +821,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         total_count = batch["depth"]
         clss = batch.get("class", None)
         batch_idx = batch.get("dataset", None)
-        print(gene_pos.shape)
 
         total_loss = 0
         losses = {}
@@ -1138,24 +1137,27 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
     def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_closure):
         """@see pl.LightningModule"""
         # update params
-        print(f"Allocated: {torch.cuda.memory_allocated() / 1024**2} MB")
-        print(f"Max Allocated: {torch.cuda.max_memory_allocated() / 1024**2} MB")
-        print(f"Reserved: {torch.cuda.memory_reserved() / 1024**2} MB")
-        print(f"Max Reserved: {torch.cuda.max_memory_reserved() / 1024**2} MB")
-        optimizer.step(closure=optimizer_closure)
-
         # manually warm up lr without a scheduler
         # making sure that we don't do this during lrfinder
-        for i, pg in enumerate(optimizer.param_groups):
-            if (
-                self.global_step < self.warmup_duration + self.lrfinder_steps
-            ) and self.lrfinder_steps < self.global_step:
-                lr_scale = min(1.0, float(self.global_step + 1) / self.warmup_duration)
+        lr_scale = None
+        if (
+            self.trainer.global_step < self.warmup_duration + self.lrfinder_steps
+        ) and self.lrfinder_steps <= self.trainer.global_step:
+            for i, pg in enumerate(optimizer.param_groups):
+                lr_scale = min(
+                    1.0, float(self.trainer.global_step + 1) / self.warmup_duration
+                )
                 pg["lr"] = lr_scale * self.hparams.lr
         for i, pg in enumerate(optimizer.param_groups):
             # if pg["lr"] < 2e-5:
             #    pg["lr"] = 2e-5
             self.log("lr_" + str(i), pg["lr"])
+        if optimizer.param_groups[0]["lr"] > self.hparams.lr:
+            print(optimizer.param_groups[0]["lr"], self.hparams.lr)
+            print(lr_scale, self.warmup_duration, self.trainer.global_step)
+            raise ValueError("OPTIMIZER HAS INCREASED LR. WHYY?")
+
+        optimizer.step(closure=optimizer_closure)
 
     def on_validation_start(self):
         for k, v in self.mat_labels_hierarchy.items():

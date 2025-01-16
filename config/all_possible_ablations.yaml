@@ -4,6 +4,7 @@
 1892372
 kxtm7jtn
 9zdkhlej
+4ezrufy9
 
 ##### 2 change the weight scaling
 data:
@@ -13,6 +14,7 @@ data:
 1892510
 hzjj21j9
 fopg9qt2
+ym72b3do
 
 #### 3 change how many cells per group before changing groups (twice as less)
 trainer:
@@ -26,6 +28,7 @@ scprint_training:
 1899680
 f2jxue8p
 mh40wxyo
+qu8zv48c
 
 ### 4 without replacement
 
@@ -36,6 +39,7 @@ data:
 1899260
 oj8i38ur
 mygjp7yc
+ltt10c1r
 
 #### 5 only scale on cell groups:
 data:
@@ -58,6 +62,7 @@ data:
 1899455
 jmhazi02
 sftebnir
+lvqytack
 
 ### 7 same but just changing the seed
 
@@ -65,6 +70,7 @@ sftebnir
 1892748
 vl9a2ts7
 5n582rb8
+lf40wfq0
 
 #### 8 do just some humans
 data:
@@ -76,6 +82,7 @@ data:
 1900679
 jqzb61j3
 1x19dtk2
+ok9jk2b5
 
 #### 9 do just good quality
 data:
@@ -85,6 +92,7 @@ data:
 1899738
 rrv1nn8j
 5w46eeyv
+lxgx7fm1
 
 #### 10 change how many cells per group before changing groups (twice as less)
 trainer:
@@ -98,6 +106,8 @@ data:
   replacement: False
 
 --trainer.limit_train_batches 5000 --trainer.reload_dataloaders_every_n_epochs 3 --trainer.max_epochs 80 --scprint_training.test_every 5 --data.weight_scaler 20 --data.replacement False
+1926500
+36za6yxt
 
 #### 11 all (already done)
 
@@ -113,63 +123,116 @@ scprint_training:
   test_every: 1
 
 --trainer.limit_train_batches 1 --trainer.limit_val_batches 2 --trainer.limit_test_batches 1 --trainer.max_epochs 2 --scprint_training.test_every 1
+1927023
+udjxr8q1
 
-###### 2 noise
+###### 14 noise
 scprint_training:
   noise: [0.6]
   do_denoise: True
   mask_ratio: []
 
 --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.mask_ratio []
+1955892
 
-
-###### 3 mask and generate
-scprint_training:
-  do_generate: True
-  mask_ratio: [\"TF\"]
-
---scprint_training.do_generate True --scprint_training.mask_ratio ['TF']
-
-#### 4 how max expr
-data:
-  how: most expr
-
---data.how 'most expr'
-
-#### 5 num heads KV
-model:
-  num_heads_kv: 2
-
---model.num_heads_kv 2
-
-###### 6 noise, generate, full forward, mask, cce
-scprint_training:
-  run_full_forward: True
-  noise: [0.6]
-  do_denoise: True
-  do_generate: True
-  do_cce: True
-  mask_ratio: [\"TF\"]
-
---scprint_training.do_generate True --scprint_training.mask_ratio ['TF'] --scprint_training.do_cce True --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.run_full_forward True
-
-#### 7 without class embd diss scale:
-scprint_training:
-  class_embd_diss_scale: 0
-
---scprint_training.class_embd_diss_scale 0
-
-###### 8 TF masking
+###### 15 mask and generate
 scprint_training:
   mask_ratio: [\"TF\"]
 
 --scprint_training.mask_ratio ['TF']
+1955923
+
+###### 16 noise, full forward, mask, cce
+scprint_training:
+  run_full_forward: True
+  noise: [0.6]
+  do_denoise: True
+  do_cce: True
+  mask_ratio: [\"TF\"]
+
+--scprint_training.mask_ratio ['TF'] --scprint_training.do_cce True --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.run_full_forward True
+1955977
+
+#### 17 without class embd diss scale:
+scprint_training:
+  class_embd_diss_scale: 0
+
+--scprint_training.class_embd_diss_scale 0
+1956021
+
+###### 18 no generate
+scprint_training:
+  do_generate: False
+
+--scprint_training.do_generate False
+1956026
 
 ##### 9 ECS
 scprint_training:
   do_ecs: True
 
 --scprint_training.ecs True
+
+##### 19 no zinb vs mse vs both
+scprint_training: 
+  zinb_and_mse: True
+  do_denoise: True
+  noise: [0.6]
+  mask_ratio: []
+
+--scprint_training.zinb_and_mse True --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.mask_ratio []
+
+#### 21 do mvc instead of generate
+scprint_training:
+  do_mvc: True
+
+--scprint_training.do_mvc True
+
+##### 33 Test multi context vs fixed
+scprint_training:
+  var_context_length: True
+data:
+  max_len: 3200
+
+--data.max_len 3200 --scprint_training.var_context_length True
+
+##### 24 change gene position tolerence
+data:
+  gene_position_tolerance: 1000
+
+--data.gene_position_tolerance 1000
+
+##### 25 don't do gene pos
+data:
+  do_gene_pos: False
+
+--data.do_gene_pos False
+
+### 29 versus only scale on cells
+data:
+  clss_to_weight:
+    - cell_type_ontology_term_id
+
+--data.clss_to_weight ['cell_type_ontology_term_id']
+
+### 30 add scale on nnz
+data:
+  clss_to_weight:
+    - clust_cell_type
+    - tissue_ontology_term_id
+    - disease_ontology_term_id
+    - age_group
+    - assay_ontology_term_id
+    - self_reported_ethnicity_ontology_term_id
+    - sex_ontology_term_id
+    - organism_ontology_term_id
+    - nnz
+
+###### 34 test metacells
+data:
+  metacell_mode: 0.2
+
+--data.metacell_mode 0.2
 
 ##### 13 Test attention bias faded vs none (MAKE SURE RIGHT DIR (T))
 model:
@@ -207,72 +270,11 @@ model:
 
 --model.zinb False
 
-##### 19 no zinb vs mse vs both
-scprint_training: 
-  zinb_and_mse: True
-  do_denoise: True
-  noise: [0.6]
-  mask_ratio: []
-
---scprint_training.zinb_and_mse True --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.mask_ratio []
-
 #### 20 do depth at input
 model:
   depth_atinput: True
 
 --model.depth_atinput True
-
-#### 21 do mvc instead of generate
-scprint_training:
-  do_mvc: True
-
---scprint_training.do_mvc True
-
-##### 24 change gene position tolerence
-data:
-  gene_position_tolerance: 1000
-
---data.gene_position_tolerance 1000
-
-##### 25 don't do gene pos
-data:
-  do_gene_pos: False
-
---data.do_gene_pos False
-
-### 29 versus only scale on cells
-data:
-  clss_to_weight:
-    - cell_type_ontology_term_id
-
---data.clss_to_weight ['cell_type_ontology_term_id']
-
-### 30 add scale on nnz
-data:
-  clss_to_weight:
-    - clust_cell_type
-    - tissue_ontology_term_id
-    - disease_ontology_term_id
-    - age_group
-    - assay_ontology_term_id
-    - self_reported_ethnicity_ontology_term_id
-    - sex_ontology_term_id
-    - organism_ontology_term_id
-    - nnz
-
-##### 33 Test multi context vs fixed
-scprint_training:
-  var_context_length: True
-data:
-  max_len: 3200
-
---data.max_len 3200 --scprint_training.var_context_length True
-
-###### 34 test metacells
-data:
-  metacell_mode: 0.2
-
---data.metacell_mode 0.2
 
 34*100 = 3400 H100 GPU
 ##### Test cheap vs esm2 vs learnt
