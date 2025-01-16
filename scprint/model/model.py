@@ -422,6 +422,11 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                         ],
                         valid_genes=self.genes,
                     )
+            os.environ["MY_SLURM_RESTART_COUNT"] = str(
+                int(os.getenv("SLURM_RESTART_COUNT", 0))
+                + 1
+                + int(os.getenv("MY_SLURM_RESTART_COUNT", 0))
+            )
         except RuntimeError as e:
             if "scPrint is not attached to a `Trainer`." in str(e):
                 print("RuntimeError caught: scPrint is not attached to a `Trainer`.")
@@ -628,40 +633,23 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             bias=bias if self.attn_bias != "none" else None,
             bias_layer=list(range(self.nlayers - 1)),
         )
+        if len(get_attention_layer) > 0:
+            transformer_output, qkvs = transformer_output
         if self.cell_transformer:
-            cell_output = self.cell_transformer(
-                cell_encoding,
-                x_kv=transformer_output[0]
-                if len(get_attention_layer) > 0
-                else transformer_output,
-            )
+            cell_output = self.cell_transformer(cell_encoding, x_kv=transformer_output)
             transformer_output = torch.cat([cell_output, transformer_output], dim=1)
         # if not provided we will mult by the current expression sum
         depth_mult = expression.sum(1) if depth_mult is None else depth_mult
-        if len(get_attention_layer) > 0:
-            transformer_output, qkvs = transformer_output
-            return (
-                self._decoder(
-                    transformer_output,
-                    depth_mult,
-                    get_gene_emb,
-                    do_sample,
-                    do_mvc,
-                    do_class,
-                    req_depth=req_depth if not self.depth_atinput else None,
-                ),
-                qkvs,
-            )
-        else:
-            return self._decoder(
-                transformer_output,
-                depth_mult,
-                get_gene_emb,
-                do_sample,
-                do_mvc,
-                do_class,
-                req_depth=req_depth if not self.depth_atinput else None,
-            )
+        res = self._decoder(
+            transformer_output,
+            depth_mult,
+            get_gene_emb,
+            do_sample,
+            do_mvc,
+            do_class,
+            req_depth=req_depth if not self.depth_atinput else None,
+        )
+        return (res, qkvs) if len(get_attention_layer) > 0 else res
 
     def configure_optimizers(self):
         """@see pl.LightningModule"""
@@ -962,7 +950,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 expression,
                 clss,
                 batch_idx,
-                "cell_emb" in output,
+                ("cell_emb" in output) and do_ecs,
                 do_adv_cls & do_cls,
                 do_adv_batch & do_cls,
                 do_mse=self.zinb_and_mse,
@@ -1037,10 +1025,13 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 target=expression,
             )
             if do_mse:
-                loss_expr += loss.mse(
-                    input=torch.log(output["mean"] + 1)
-                    * (1 - torch.sigmoid(output["zero_logits"])),
-                    target=torch.log(expression + 1),
+                loss_expr += (
+                    loss.mse(
+                        input=torch.log(output["mean"] + 1)
+                        * (1 - torch.sigmoid(output["zero_logits"])),
+                        target=torch.log(expression + 1),
+                    )
+                    / 10  # scale to make it more similar to the zinb
                 )
         elif "disp" in output:
             loss_expr = loss.nb(

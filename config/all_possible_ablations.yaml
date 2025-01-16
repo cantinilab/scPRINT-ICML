@@ -1,24 +1,165 @@
-###### 
+### 1 init
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml
+1892372
+kxtm7jtn
+9zdkhlej
+
+##### 2 change the weight scaling
+data:
+  weight_scaler: 3000
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.weight_scaler 3000
+1892510
+hzjj21j9
+fopg9qt2
+
+#### 3 change how many cells per group before changing groups (twice as less)
+trainer:
+  limit_train_batches: 10000
+  reload_dataloaders_every_n_epochs: 5
+  max_epochs: 80
+scprint_training:
+  test_every: 5
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --trainer.limit_train_batches 10000 --trainer.reload_dataloaders_every_n_epochs 5 --trainer.max_epochs 40
+1899680
+f2jxue8p
+mh40wxyo
+
+### 4 without replacement
+
+data:
+  replacement: False
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.replacement False
+1899260
+oj8i38ur
+mygjp7yc
+
+#### 5 only scale on cell groups:
+data:
+  clss_to_weight:
+    - clust_cell_type
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.clss_to_weight '[\"clust_cell_type\"]'
+1890999
+h9mvhutk
+fvp021zs
+
+### 6 only scale on nnz:
+data:
+  clss_to_weight:
+    - nnz
+    - clust_cell_type
+  weight_scaler: 500
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.clss_to_weight [\"nnz\"\,\"clust_cell_type\"] --data.weight_scaler 500"
+1899455
+jmhazi02
+sftebnir
+
+### 7 same but just changing the seed
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --seed_everything 52
+1892748
+vl9a2ts7
+5n582rb8
+
+#### 8 do just some humans
+data:
+  collection_name: scPRINT-V2 (100 random humans)
+  organisms:
+    - NCBITaxon:9606
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.collection_name \"scPRINT-V2 (100 random humans)\" --data.organisms '[\"NCBITaxon:9606\"]'
+1900679
+jqzb61j3
+1x19dtk2
+
+#### 9 do just good quality
+data:
+  collection_name: scPRINT-V2 (good quality)
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.collection_name \"scPRINT-V2 (good quality)\"
+1899738
+rrv1nn8j
+5w46eeyv
+
+#### 10 change how many cells per group before changing groups (twice as less)
+trainer:
+  limit_train_batches: 5000
+  reload_dataloaders_every_n_epochs: 3
+  max_epochs: 80
+scprint_training:
+  test_every: 5
+data:
+  weight_scaler: 20
+  replacement: False
+
+--trainer.limit_train_batches 5000 --trainer.reload_dataloaders_every_n_epochs 3 --trainer.max_epochs 80 --scprint_training.test_every 5 --data.weight_scaler 20 --data.replacement False
+
+###### 2 noise
+scprint_training:
+  noise: [0.6]
+  do_denoise: True
+  mask_ratio: []
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.noise '[0.6]' --scprint_training.do_denoise True --scprint_training.mask_ratio []
+
+###### 3 mask and generate
+scprint_training:
+  do_generate: True
+  mask_ratio: [\"TF\"]
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.do_generate True --scprint_training.mask_ratio '[\"TF\"]'
+
+#### 4 how max expr
+data:
+  how: most expr
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.how 'most expr'
+
+#### 5 num heads KV
+model:
+  num_heads_kv: 2
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --model.num_heads_kv 2
+
+###### 6 noise, generate, full forward, mask, cce
 scprint_training:
   run_full_forward: True
   noise: [0.6]
   do_denoise: True
-  class_embd_diss_scale: 0.1
   do_generate: True
   do_cce: True
+  mask_ratio: [\"TF\"]
 
-###### TF masking
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.do_generate True --scprint_training.mask_ratio '[\"TF\"]' --scprint_training.do_cce True --scprint_training.noise '[0.6]' --scprint_training.do_denoise True --scprint_training.run_full_forward True
+
+#### 7 without class embd diss scale:
 scprint_training:
-  mask_ratio: ["TF"]
+  class_embd_diss_scale: 0
 
-##### 
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.class_embd_diss_scale 0
+
+###### 8 TF masking
+scprint_training:
+  mask_ratio: [\"TF\"]
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.mask_ratio '[\"TF\"]'
+
+##### 9 ECS
 scprint_training:
   do_ecs: True
-  
-##### Test cheap vs esm2 vs learnt
 
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.ecs True
 
-##### untrained model’s performance
+#### 10 all (already done)
+
+#### 11 old (already done)
+
+##### 12 untrained model’s performance
 trainer:
   limit_train_batches: 1
   limit_val_batches: 200
@@ -27,80 +168,85 @@ trainer:
 scprint_training:
   test_every: 1
 
-##### Test attention bias faded vs none (MAKE SURE RIGHT DIR (T))
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --trainer.limit_train_batches 1 --trainer.limit_val_batches 2 --trainer.limit_test_batches 1 --trainer.max_epochs 2 --scprint_training.test_every 1
+
+##### 13 Test attention bias faded vs none (MAKE SURE RIGHT DIR (T))
 model:
   attn_bias: full
 
-##### 
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --model.attn_bias full
+
+##### 14 no dropout
 model:
   dropout: 0
-  num_heads_kv: 4
 
-#####
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --model.dropout 0
+
+##### 15 do cell specific blocks
 model:
-  cell_specific_blocks: False
+  cell_specific_blocks: True
 
-#####
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --model.cell_specific_blocks True
+
+##### 16 learn gene embeddings
 model:
   freeze_embeddings: False
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --model.freeze_embeddings False
   
-#####
+##### 17 norm sum
 model:
   normalization: sum
 
-##### no zinb vs mse vs both
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --model.normlization sum
+
+##### 18 no zinb vs mse vs both
 model:
   zinb: False
 
-##### no zinb vs mse vs both
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --model.zinb False
+
+##### 19 no zinb vs mse vs both
 scprint_training: 
   zinb_and_mse: True
+  do_denoise: True
+  noise: [0.6]
+  mask_ratio: []
 
-#### 
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.zinb_and_mse True --scprint_training.noise '[0.6]' --scprint_training.do_denoise True --scprint_training.mask_ratio '[]'
+
+#### 20 do depth at input
 model:
   depth_atinput: True
 
-#### 
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --model.depth_atinput True
+
+#### 21 do mvc instead of generate
 scprint_training:
   do_mvc: True
 
-##### need to run them until the end
-data:
-  organisms:
-    - NCBITaxon:9606
-    - NCBITaxon:10090
-  collection_name: scPRINT-V2 (good quality)
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --scprint_training.do_mvc True
 
-##### need to run them until the end
-data:
-  organisms:
-    - NCBITaxon:9606
-    - NCBITaxon:10090
-  collection_name: scPRINT-V2 full
-
-#####
+##### 24 change gene position tolerence
 data:
   gene_position_tolerance: 1000
 
-#####
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.gene_position_tolerance 1000
+
+##### 25 don't do gene pos
 data:
   do_gene_pos: False
 
-#####
-data:
-  weight_scaler: 3000
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.do_gene_pos False
 
-##### Test multi context vs fixed
-scprint_training:
-  var_context_length: True
+### 29 versus only scale on cells
 data:
-  max_len: 3200
+  clss_to_weight:
+    - cell_type_ontology_term_id
 
-######
-data:
-  metacell_mode: 0.2
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.clss_to_weight '[\"cell_type_ontology_term_id\"]'
 
-##### 
+### 30 add scale on nnz
 data:
   clss_to_weight:
     - clust_cell_type
@@ -111,17 +257,21 @@ data:
     - self_reported_ethnicity_ontology_term_id
     - sex_ontology_term_id
     - organism_ontology_term_id
-    - cell_culture
     - nnz
 
-##### 
+##### 33 Test multi context vs fixed
+scprint_training:
+  var_context_length: True
 data:
-  clss_to_weight:
-    - cell_type_ontology_term_id
-    - tissue_ontology_term_id
-    - disease_ontology_term_id
-    - age_group
-    - assay_ontology_term_id
-    - self_reported_ethnicity_ontology_term_id
-    - sex_ontology_term_id
-    - organism_ontology_term_id
+  max_len: 3200
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.max_len 3200 --scprint_training.var_context_length True
+
+###### 34 test metacells
+data:
+  metacell_mode: 0.2
+
+sbatch --ntasks-per-node=1 --hint=nomultithread --gres=gpu:1 --cpus-per-task=24 --time 100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --signal=SIGUSR1@90 scprint fit --config config/ablation_study.yml --data.metacell_mode 0.2
+
+34*100 = 3400 H100 GPU
+##### Test cheap vs esm2 vs learnt

@@ -1,0 +1,16 @@
+scprint_training:
+  var_context_length: False
+model:
+  nhead: 4
+  nlayers: 8
+  layers_cls: [256]
+  d_model: 256
+  compress_class_dim:
+    cell_type_ontology_term_id: 18 # 20
+    tissue_ontology_term_id: 8
+    disease_ontology_term_id: 14
+    age_group: 8
+    assay_ontology_term_id: 5 #6
+    self_reported_ethnicity_ontology_term_id: 10
+    sex_ontology_term_id: 2
+    organism_ontology_term_id: 8

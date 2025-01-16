@@ -6,14 +6,13 @@ log_freq: 200
 log_graph: True
 trainer:
   precision: 16-mixed
-  strategy: ddp_find_unused_parameters_true
   gradient_clip_val: 40
   log_every_n_steps: 100
-  limit_train_batches: 5000
+  limit_train_batches: 20000
   gradient_clip_algorithm: norm
   limit_val_batches: 4000
   limit_test_batches: 1 # we don't perform tests this way
-  reload_dataloaders_every_n_epochs: 20
+  reload_dataloaders_every_n_epochs: 5
   max_epochs: 21
   accumulate_grad_batches: 1
   logger:
@@ -40,15 +39,15 @@ scprint_training:
   do_generate: True
   test_every: 5
   do_cce: False
-  mask_ratio: 0.3 #["TF"]
+  mask_ratio: [0.3] #["TF"]
 model:
   dropout: 0.1
-  num_heads_kv: 2
+  num_heads_kv: 4
   transformer: flash
   mvc_decoder: inner product
   residual_in_fp32: True
   checkpointing: True
-  cell_specific_blocks: True
+  cell_specific_blocks: False
   fused_dropout_add_ln: False
   prenorm: True
   fused_mlp: False
@@ -61,9 +60,10 @@ model:
 data:
   organisms:
     - NCBITaxon:9606
+    - NCBITaxon:10090
   gene_position_tolerance: 10_000
   gene_embeddings: /lustre/fswork/projects/rech/xeg/uat95fg/gene_embeddings.parquet
-  collection_name: scPRINT-V2 (100 random humans) #scPRINT-V2 (good quality)
+  collection_name: scPRINT-V2 full #scPRINT-V2 (good quality)
   how: random expr
   max_len: 2200
   pin_memory: True
@@ -75,8 +75,8 @@ data:
   train_oversampling_per_epoch: 0.15
   validation_split: 0.05
   test_split: 0.02
-  batch_size: 32
-  num_workers: 20
+  batch_size: 64
+  num_workers: 24
   hierarchical_clss:
     - cell_type_ontology_term_id
     - tissue_ontology_term_id
