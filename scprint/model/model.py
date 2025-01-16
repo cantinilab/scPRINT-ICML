@@ -1247,9 +1247,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             if torch.distributed.is_initialized():
                 # Set a timeout that's longer than your test typically takes
                 # Write rank to file for debugging
-                rank = torch.distributed.get_rank()
-                with open(f"rank_{rank}.txt", "a") as f:
-                    f.write(f"Rank {rank} completed test epoch\n")
                 self.trainer.strategy.barrier()
 
     def test_step(self, *args, **kwargs):
