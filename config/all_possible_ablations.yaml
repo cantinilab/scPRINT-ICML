@@ -5,6 +5,8 @@
 kxtm7jtn
 9zdkhlej
 4ezrufy9
+1964988
+4ihs8zbj #697jiesc
 
 ##### 2 change the weight scaling
 data:
@@ -15,12 +17,14 @@ data:
 hzjj21j9
 fopg9qt2
 ym72b3do
+1965013
+joyets6s
 
 #### 3 change how many cells per group before changing groups (twice as less)
 trainer:
   limit_train_batches: 10000
   reload_dataloaders_every_n_epochs: 5
-  max_epochs: 80
+  max_epochs: 40
 scprint_training:
   test_every: 5
 
@@ -29,6 +33,9 @@ scprint_training:
 f2jxue8p
 mh40wxyo
 qu8zv48c
+1965407
+e20jt0en
+# check e20jt0en for an issue at 320K
 
 ### 4 without replacement
 
@@ -40,6 +47,8 @@ data:
 oj8i38ur
 mygjp7yc
 ltt10c1r
+1965675
+qw48w6p6
 
 #### 5 only scale on cell groups:
 data:
@@ -50,6 +59,8 @@ data:
 1890999
 h9mvhutk
 fvp021zs
+1968280
+konhvgyn
 
 ### 6 only scale on nnz:
 data:
@@ -63,6 +74,8 @@ data:
 jmhazi02
 sftebnir
 lvqytack
+1968336
+6i2xs1cf
 
 ### 7 same but just changing the seed
 
@@ -108,6 +121,18 @@ data:
 --trainer.limit_train_batches 5000 --trainer.reload_dataloaders_every_n_epochs 3 --trainer.max_epochs 80 --scprint_training.test_every 5 --data.weight_scaler 20 --data.replacement False
 1926500
 36za6yxt
+
+#### 10 change how many cells per group before changing groups (twice as less)
+trainer:
+  limit_train_batches: 20000
+  reload_dataloaders_every_n_epochs: 2
+  max_epochs: 60
+scprint_training:
+  test_every: 5
+data:
+  weight_scaler: 20
+  replacement: False
+  train_oversampling_per_epoch: 0.2
 
 #### 11 all (already done)
 

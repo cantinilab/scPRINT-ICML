@@ -2,6 +2,7 @@ project: scprint_ablation
 seed_everything: 50
 set_float32_matmul_precision: True
 wandblog: all
+ckpt_path: null
 log_freq: 200
 log_graph: True
 trainer:
@@ -46,7 +47,7 @@ model:
   transformer: flash
   mvc_decoder: inner product
   residual_in_fp32: True
-  checkpointing: True
+  checkpointing: False
   cell_specific_blocks: False
   fused_dropout_add_ln: False
   prenorm: True
@@ -76,7 +77,7 @@ data:
   validation_split: 0.05
   test_split: 0.02
   batch_size: 64
-  num_workers: 24
+  num_workers: 20
   hierarchical_clss:
     - cell_type_ontology_term_id
     - tissue_ontology_term_id

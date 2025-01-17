@@ -111,10 +111,10 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.do_cce = False
         self.cce_temp = 0.2
         self.lr = 0.0001
-        self.cce_scale = 0.05
+        self.cce_scale = 0.1
         self.do_ecs = False
         self.ecs_threshold = 0.4
-        self.ecs_scale = 0.05
+        self.ecs_scale = 0.1
         self.do_mvc = False
         self.mvc_scale = 1.0
         self.class_embd_diss_scale = 0.1
@@ -125,7 +125,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.mean_attn_tot_c = 0
         self.do_adv_batch = False
         self.run_full_forward = True
-        self.class_scale = 0.4
+        self.class_scale = 1
         self.zinb_and_mse = False
         self.do_next_tp = False
         self.do_generate = False
@@ -136,7 +136,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.weight_decay = 0.01
         self.optim = "adamW"
         self.fused_adam = False
-        self.lr_reduce_patience = 1
+        self.lr_reduce_patience = 2
         self.lr_reduce_factor = 0.6
         self.test_every = 20
         self.lr_reduce_monitor = "val_loss"
@@ -1140,6 +1140,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # manually warm up lr without a scheduler
         # making sure that we don't do this during lrfinder
         lr_scale = None
+        prev_lr = None
         if (
             self.trainer.global_step < self.warmup_duration + self.lrfinder_steps
         ) and self.lrfinder_steps <= self.trainer.global_step:
@@ -1147,6 +1148,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 lr_scale = min(
                     1.0, float(self.trainer.global_step + 1) / self.warmup_duration
                 )
+                prev_lr = pg["lr"]
                 pg["lr"] = lr_scale * self.hparams.lr
         for i, pg in enumerate(optimizer.param_groups):
             # if pg["lr"] < 2e-5:
@@ -1154,8 +1156,11 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             self.log("lr_" + str(i), pg["lr"])
         if optimizer.param_groups[0]["lr"] > self.hparams.lr:
             print(optimizer.param_groups[0]["lr"], self.hparams.lr)
-            print(lr_scale, self.warmup_duration, self.trainer.global_step)
-            raise ValueError("OPTIMIZER HAS INCREASED LR. WHYY?")
+            print(lr_scale, self.warmup_duration, self.trainer.global_step, prev_lr)
+            if prev_lr is not None:
+                pg["lr"] = prev_lr
+            else:
+                raise ValueError("OPTIMIZER HAS INCREASED LR. WHYY?")
 
         optimizer.step(closure=optimizer_closure)
 

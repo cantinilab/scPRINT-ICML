@@ -32,7 +32,7 @@ class TrainingMode(Callback):
         do_cls: bool = True,
         do_adv_batch: bool = False,
         run_full_forward: bool = False,
-        lr: float = 0.001,
+        lr: float = 0.0001,
         dropout: float = 0.1,
         optim: str = "adamW",
         weight_decay: float = 0.01,
