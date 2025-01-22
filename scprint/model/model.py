@@ -1261,14 +1261,16 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
 
     def on_test_epoch_end(self):
         # Run the test only on global rank 0
-        if self.set_step is not None:
-            self.trainer.fit_loop.epoch_loop.automatic_optimization.optim_progress.optimizer.step.total.completed = self.set_step
         name = self.name + "_step" + str(self.global_step)
         try:
             metrics = utils.test(self, name, filedir=str(FILEDIR), do_class=self.do_cls)
             print(metrics)
             print("done test")
-            self.log_dict(metrics, sync_dist=False, rank_zero_only=True)
+            if self.set_step is not None:
+                print("this part only works in some cases and for wandb")
+                self.trainer._loggers[0].log_metrics(metrics, self.set_step)
+            else:
+                self.log_dict(metrics, sync_dist=False, rank_zero_only=True)
         except Exception as e:
             import traceback
 
