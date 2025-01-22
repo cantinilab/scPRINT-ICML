@@ -39,6 +39,7 @@ class TrainingMode(Callback):
         zinb_and_mse: bool = False,
         var_context_length: bool = False,
         name="",
+        set_step: Optional[int] = None,
     ):
         """
         TrainingMode a callback to set the training specific info to the model.
@@ -79,6 +80,7 @@ class TrainingMode(Callback):
             zinb_and_mse (bool): Whether to use ZINB and MSE loss. Defaults to False.
             var_context_length (bool): Whether to use variable context length. Defaults to False.
             dropout (float): Dropout rate for the model. Defaults to 0.1.
+            set_step (int, optional): Set the global step for the model. Defaults to None.
         """
         super().__init__()
         self.do_denoise = do_denoise
@@ -115,6 +117,7 @@ class TrainingMode(Callback):
         self.zinb_and_mse = zinb_and_mse
         self.var_context_length = var_context_length
         self.dropout = dropout
+        self.set_step = set_step
 
     def __repr__(self):
         return (
@@ -151,7 +154,8 @@ class TrainingMode(Callback):
             f"class_embd_diss_scale={self.class_embd_diss_scale}, "
             f"zinb_and_mse={self.zinb_and_mse}, "
             f"var_context_length={self.var_context_length}, "
-            f"dropout={self.dropout})"
+            f"dropout={self.dropout}, "
+            f"set_step={self.set_step})"
         )
 
     def setup(self, trainer, model, stage=None):
@@ -190,4 +194,5 @@ class TrainingMode(Callback):
         model.zinb_and_mse = self.zinb_and_mse
         model.var_context_length = self.var_context_length
         model.dropout = self.dropout
+        model.set_step = self.set_step
         # model.configure_optimizers()

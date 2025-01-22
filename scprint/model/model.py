@@ -130,7 +130,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.do_next_tp = False
         self.do_generate = False
         self.var_context_length = False
-        self.depth_atinput = depth_atinput
         self.mask_ratio = []
         self.warmup_duration = 500
         self.weight_decay = 0.01
@@ -141,11 +140,18 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self.test_every = 20
         self.lr_reduce_monitor = "val_loss"
         self.name = ""
+        self.set_step = None
         self.lrfinder_steps = 0
         self.doplot = True
         self.get_attention_layer = []
         self.embs = None
         self.pred_log_adata = True
+        self.predict_depth_mult = 3
+        self.predict_mode = "none"
+        self.keep_all_cls_pred = False
+        self.cell_separation = True
+        
+        self.depth_atinput = depth_atinput
         self.attn = utils.Attention(
             len(genes),
             additional_tokens=(
@@ -155,10 +161,6 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             ),
         )
         self.tf_masker = WeightedMasker(genes, inv_weight=0.05)
-        self.predict_depth_mult = 3
-        self.predict_mode = "none"
-        self.keep_all_cls_pred = False
-        self.cell_separation = True
         # should be stored somehow
         self.d_model = d_model
         self.normalization = normalization
@@ -1264,6 +1266,8 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             metrics = utils.test(self, name, filedir=str(FILEDIR), do_class=self.do_cls)
             print(metrics)
             print("done test")
+            if self.set_step is not None:
+                self.trainer.global_step = self.set_step
             self.log_dict(metrics, sync_dist=False, rank_zero_only=True)
         except Exception as e:
             import traceback
