@@ -76,8 +76,11 @@ class Denoiser:
         Returns:
             AnnData: The denoised annotated data matrix.
         """
-        if os.path.exists("collator_output.txt"):
-            os.remove("collator_output.txt")
+        # Select random number
+        if self.downsample is not None:
+            num = np.random.randint(0, 1000000)
+            while os.path.exists(f"collator_output_{num}.txt"):
+                num = np.random.randint(0, 1000000)
         random_indices = None
         if self.max_cells < adata.shape[0]:
             random_indices = np.random.randint(
@@ -103,7 +106,9 @@ class Denoiser:
             how="some" if self.how == "most var" else self.how,
             genelist=self.genelist if self.how != "random expr" else [],
             downsample=self.downsample,
-            save_output=True,
+            save_output=f"collator_output_{num}.txt"
+            if self.downsample is not None
+            else None,
         )
         dataloader = DataLoader(
             adataset,
@@ -144,7 +149,8 @@ class Denoiser:
             reco = reco.cpu().numpy()
             tokeep = np.isnan(reco).sum(1) == 0
             reco = reco[tokeep]
-            noisy = np.loadtxt("collator_output.txt")[tokeep]
+            noisy = np.loadtxt(f"collator_output_{num}.txt")[tokeep]
+            os.remove(f"collator_output_{num}.txt")
 
             if random_indices is not None:
                 true = adata.X[random_indices][tokeep]

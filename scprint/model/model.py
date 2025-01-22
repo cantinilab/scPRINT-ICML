@@ -378,7 +378,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         # if len(checkpoints["state_dict"]["pos_encoder.pe"].shape) == 3:
         #    self.pos_encoder.pe = checkpoints["state_dict"]["pos_encoder.pe"].squeeze(1)
 
-        self.normalization = checkpoints["hyper_parameters"]["normalization"]
+        self.normalization = checkpoints["hyper_parameters"].get("normalization", "sum")
         if "classes" in checkpoints["hyper_parameters"]:
             if self.classes != checkpoints["hyper_parameters"]["classes"]:
                 print("changing the number of classes, could lead to issues")

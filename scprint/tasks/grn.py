@@ -95,16 +95,15 @@ class GNInfer:
         self.layer = layer
         self.locname = locname
         self.how = how
-        assert (
-            self.how
-            in [
-                "most var within",
-                "most var across",
-                "random expr",
-                "given",
-                "most expr",
-            ]
-        ), "how must be one of 'most var within', 'most var across', 'random expr', 'given', 'most expr'"
+        assert self.how in [
+            "most var within",
+            "most var across",
+            "random expr",
+            "given",
+            "most expr",
+        ], (
+            "how must be one of 'most var within', 'most var across', 'random expr', 'given', 'most expr'"
+        )
         self.num_genes = num_genes
         self.preprocess = preprocess
         self.cell_type_col = cell_type_col
@@ -488,6 +487,8 @@ def default_benchmark(
         ]
         for da, spe, gt in todo:
             if gt != "full":
+                continue
+            if "NCBITaxon:10090" not in model.organisms and spe == "mouse":
                 continue
             print(da + "_" + gt)
             preadata = get_sroy_gt(get=da, species=spe, gt=gt)
