@@ -35,10 +35,13 @@ scPRINT can be used to perform the following analyses:
 - [scPRINT: Large Cell Model for scRNAseq data](#scprint-large-cell-model-for-scrnaseq-data)
   - [Table of Contents](#table-of-contents)
   - [Install `scPRINT`](#install-scprint)
+    - [Test scPRINT on google colab!](#test-scprint-on-google-colab)
+    - [Use scPRINT in superbio.ai!](#use-scprint-in-superbioai)
     - [lamin.ai](#laminai)
     - [install](#install)
     - [pytorch and GPUs](#pytorch-and-gpus)
     - [dev install](#dev-install)
+  - [Reproducibility](#reproducibility)
   - [Usage](#usage)
     - [scPRINT's basic commands](#scprints-basic-commands)
     - [Notes on GPU/CPU usage with triton](#notes-on-gpucpu-usage-with-triton)
@@ -70,6 +73,14 @@ scPRINT can be used to perform the following analyses:
 For the moment scPRINT has been tested on MacOS and Linux (Ubuntu 20.04) with Python 3.10. Its instalation takes on average 10 minutes.
 
 If you want to be using flashattention2, know that it only supports triton 2.0 MLIR's version and torch==2.0.0 for now.
+
+### Test scPRINT on google colab!
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1CacoQDAwJn86tq2sBhUoZ6M-xAqsYFDI#scrollTo=Vj73HINSzKHL)
+
+### Use scPRINT in superbio.ai!
+
+[HERE](https://app.superbio.ai/apps/67333115ed44f27eb717cf84)
 
 ### lamin.ai
 

@@ -49,6 +49,9 @@ class MyCLI(LightningCLI):
         parser.link_arguments(
             "data.labels_hierarchy", "model.labels_hierarchy", apply_on="instantiate"
         )
+        parser.link_arguments(
+            "data.metacell_mode", "model.use_metacell_token", apply_on="instantiate"
+        )
         parser.link_arguments("data.classes", "model.classes", apply_on="instantiate")
         parser.link_arguments(
             "data.gene_embeddings", "model.precpt_gene_emb", apply_on="parse"
