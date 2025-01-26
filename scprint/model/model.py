@@ -39,35 +39,33 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         self,
         genes: list,
         organisms: list = ["NCBITaxon:9606"],
+        d_model: int = 256,
+        nhead: int = 4,
+        nlayers: int = 8,
         precpt_gene_emb: Optional[str] = None,
         gene_pos_enc: Optional[list] = None,
         normalization: str = "sum",
-        d_model: int = 512,
-        nhead: int = 8,
         attn_bias: str = "none",
-        d_hid: int = 512,
-        edge_dim: int = 12,
-        nlayers: int = 6,
         expr_encoder_layers: int = 2,
-        layers_cls: list[int] = [],
-        classes: Dict[str, int] = {},
-        labels_hierarchy: Dict[str, Dict[int, list[int]]] = {},
-        dropout: float = 0.1,
-        transformer: str = "fast",
+        transformer: str = "flash",
         expr_emb_style: str = "continuous",  # "binned_pos", "cont_pos"
         domain_spec_batchnorm: str = "None",
         n_input_bins: int = 0,
         num_batch_labels: int = 0,
         mvc_decoder: str = "None",
         pred_embedding: list[str] = [],
+        layers_cls: list[int] = [],
+        classes: Dict[str, int] = {},
+        labels_hierarchy: Dict[str, Dict[int, list[int]]] = {},
+        label_decoders: Optional[Dict[str, Dict[int, str]]] = None,
+        compress_class_dim: Optional[Dict[str, int]] = None,
         cell_emb_style: str = "cls",
         cell_specific_blocks: bool = False,
-        depth_atinput: bool = True,
+        depth_atinput: bool = False,
         freeze_embeddings: bool = True,
-        label_decoders: Optional[Dict[str, Dict[int, str]]] = None,
         zinb: bool = True,
+        dropout: float = 0.1,
         lr: float = 0.0001,
-        compress_class_dim: Optional[Dict[str, int]] = None,
         **flash_attention_kwargs,
     ):
         """
@@ -261,7 +259,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         )
 
         # compute tensor for mat_labels_hierarchy
-        for i in ["strict_loading", "optim", "weight_decay", "lr"]:
+        for i in ["strict_loading", "optim", "weight_decay", "d_hid", "edge_dim"]:
             if i in flash_attention_kwargs:
                 flash_attention_kwargs.pop(i)
         # Transformer
