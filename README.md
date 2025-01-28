@@ -30,6 +30,8 @@ scPRINT can be used to perform the following analyses:
 
 ![figure1](docs/figure1.png)
 
+🎊 test scPRINT and scDataloader on this simple [google collab](https://colab.research.google.com/drive/1CacoQDAwJn86tq2sBhUoZ6M-xAqsYFDI#scrollTo=Lb4E9IhQ7NK8)
+
 ## Table of Contents
 
 - [scPRINT: Large Cell Model for scRNAseq data](#scprint-large-cell-model-for-scrnaseq-data)
