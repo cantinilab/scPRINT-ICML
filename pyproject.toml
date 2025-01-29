@@ -51,7 +51,6 @@ dependencies = [
     "bio>=1.7.1",
     "future>=1.0.0",
     "simpler_flash>=1.0.5",
-    "zarr==1.1.0",
 ]
 
 [project.optional-dependencies]
