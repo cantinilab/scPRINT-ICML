@@ -7,11 +7,12 @@ authors = [
 ]
 license = "MIT"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10, <3.12"
 keywords = ["scRNAseq", "transformer", "GRN", "gene regulatory network", "scPRINT", "large cell model", "foundation model"]
 dependencies = [
     "torch==2.2.0",
     "lightning>=2.0.0",
+    "lamindb[bionty,jupyter,ourprojects,cellregistry,zarr]==1.0.4",
     "matplotlib>=3.5.0",
     "seaborn>=0.11.0",
     "ipykernel>=6.20.0",
@@ -41,7 +42,6 @@ dependencies = [
     "jsonargparse>=4.0.0",
     "docstring-parser>=0.15",
     "wandb>=0.12.0",
-    "zarr>=2.10.0",
     "tensorly>=0.6.0",
     "torchvision>=0.13.0",
     "torchaudio>=0.12.0",
@@ -51,6 +51,7 @@ dependencies = [
     "bio>=1.7.1",
     "future>=1.0.0",
     "simpler_flash>=1.0.5",
+    "storage3<=0.11.1"
 ]
 
 [project.optional-dependencies]
@@ -95,6 +96,7 @@ only-include = [
     "/scprint",
     "/slurm",
     "/config",
+    "/data/main/TFs.txt",
 ]
 
 [tool.hatch.build.targets.wheel]

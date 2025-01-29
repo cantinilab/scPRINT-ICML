@@ -32,7 +32,7 @@ lint:             ## Run pep8, black, mypy linters.
 
 .PHONY: test
 test: lint        ## Run tests and generate coverage report.
-	$(ENV_PREFIX)uv run pytest -v --cov-config .coveragerc --cov=scprint -l --tb=short --maxfail=1 tests/
+	$(ENV_PREFIX)uv run pytest -v -x --cov-config .coveragerc --cov=scprint -l --tb=short --maxfail=1 tests/
 	$(ENV_PREFIX)uv run coverage xml
 	$(ENV_PREFIX)uv run coverage html
 
@@ -71,7 +71,6 @@ release:          ## Create a new tag for release.
 	@read -p "Version? (provide the next x.y.z semver) : " TAG
 	@echo "$${TAG}" > scprint/VERSION
 	@sed -i 's/^version = .*/version = "'$${TAG}'"/' pyproject.toml
-	@sed -i 's/__version__ = .*/__version__ = "'$${TAG}'"/' scprint/__init__.py
 	@$(ENV_PREFIX)gitchangelog > HISTORY.md
 	@git add scprint/VERSION HISTORY.md pyproject.toml
 	@git commit -m "release: version $${TAG} 🚀"

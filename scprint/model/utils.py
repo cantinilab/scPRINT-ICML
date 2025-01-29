@@ -772,6 +772,18 @@ def test(
         model,
         filedir + "/../../data/yBCKp6HmXuHa0cZptMo7.h5ad",
         batch_size=32 if model.d_model <= 512 else 8,
+        cell_types=[
+            "kidney distal convoluted tubule epithelial cell",
+            "kidney loop of Henle thick ascending limb epithelial cell",
+            "kidney collecting duct principal cell",
+            "mesangial cell",
+            "blood vessel smooth muscle cell",
+            "podocyte",
+            "macrophage",
+            "leukocyte",
+            "kidney interstitial fibroblast",
+            "endothelial cell",
+        ],
     )
     f = open("metrics_" + name + ".json", "a")
     f.write(json.dumps({"grn_omni": res}, default=lambda o: str(o), indent=4))

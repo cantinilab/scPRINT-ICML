@@ -5,8 +5,8 @@
 kxtm7jtn
 9zdkhlej
 4ezrufy9
-1964988
-4ihs8zbj #697jiesc
+2005482
+lgd8fxlr #4ihs8zbj #697jiesc
 
 ##### 2 change the weight scaling
 data:
@@ -17,8 +17,8 @@ data:
 hzjj21j9
 fopg9qt2
 ym72b3do
-1965013
-joyets6s
+2005485
+2lcxnvw0 #joyets6s
 
 #### 3 change how many cells per group before changing groups (twice as less)
 trainer:
@@ -33,9 +33,9 @@ scprint_training:
 f2jxue8p
 mh40wxyo
 qu8zv48c
-1965407
-e20jt0en
-# check e20jt0en for an issue at 320K
+2005589
+a66pj8hg #e20jt0en
+it1qlsqz
 
 ### 4 without replacement
 
@@ -47,8 +47,8 @@ data:
 oj8i38ur
 mygjp7yc
 ltt10c1r
-1965675
-qw48w6p6
+1986169
+u8o7kjl7
 
 #### 5 only scale on cell groups:
 data:
@@ -59,8 +59,8 @@ data:
 1890999
 h9mvhutk
 fvp021zs
-1968280
-konhvgyn
+2005788
+6z95wcfi #konhvgyn
 
 ### 6 only scale on nnz:
 data:
@@ -74,8 +74,8 @@ data:
 jmhazi02
 sftebnir
 lvqytack
-1968336
-6i2xs1cf
+2005956
+k9dvl1zo # 6i2xs1cf
 
 ### 7 same but just changing the seed
 
@@ -84,6 +84,8 @@ lvqytack
 vl9a2ts7
 5n582rb8
 lf40wfq0
+2005960
+zlsr316s
 
 #### 8 do just some humans
 data:
@@ -96,6 +98,8 @@ data:
 jqzb61j3
 1x19dtk2
 ok9jk2b5
+2010981
+39ch1luo
 
 #### 9 do just good quality
 data:
@@ -106,6 +110,8 @@ data:
 rrv1nn8j
 5w46eeyv
 lxgx7fm1
+2011075
+ypavoehi
 
 #### 10 change how many cells per group before changing groups (twice as less)
 trainer:
@@ -121,18 +127,9 @@ data:
 --trainer.limit_train_batches 5000 --trainer.reload_dataloaders_every_n_epochs 3 --trainer.max_epochs 80 --scprint_training.test_every 5 --data.weight_scaler 20 --data.replacement False
 1926500
 36za6yxt
-
-#### 10 change how many cells per group before changing groups (twice as less)
-trainer:
-  limit_train_batches: 20000
-  reload_dataloaders_every_n_epochs: 2
-  max_epochs: 60
-scprint_training:
-  test_every: 5
-data:
-  weight_scaler: 20
-  replacement: False
-  train_oversampling_per_epoch: 0.2
+2011166
+we9hxk02
+fa0oyahq
 
 #### 11 all (already done)
 
@@ -157,15 +154,13 @@ scprint_training:
   do_denoise: True
   mask_ratio: []
 
---scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.mask_ratio []
-1955892
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.mask_ratio []"
 
 ###### 15 mask and generate
 scprint_training:
   mask_ratio: [\"TF\"]
 
---scprint_training.mask_ratio ['TF']
-1955923
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --scprint_training.mask_ratio ['TF']"
 
 ###### 16 noise, full forward, mask, cce
 scprint_training:
@@ -175,131 +170,114 @@ scprint_training:
   do_cce: True
   mask_ratio: [\"TF\"]
 
---scprint_training.mask_ratio ['TF'] --scprint_training.do_cce True --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.run_full_forward True
-1955977
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --scprint_training.mask_ratio ['TF'] --scprint_training.do_cce True --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.run_full_forward True"
 
 #### 17 without class embd diss scale:
 scprint_training:
   class_embd_diss_scale: 0
 
---scprint_training.class_embd_diss_scale 0
-1956021
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --scprint_training.class_embd_diss_scale 0"
 
 ###### 18 no generate
 scprint_training:
   do_generate: False
 
---scprint_training.do_generate False
-1956026
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --scprint_training.do_generate False"
 
-##### 9 ECS
+##### 19 ECS
 scprint_training:
   do_ecs: True
 
---scprint_training.ecs True
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --scprint_training.do_ecs True"
 
-##### 19 no zinb vs mse vs both
+###???????
+
+##### 20 no zinb vs mse vs both
 scprint_training: 
   zinb_and_mse: True
   do_denoise: True
   noise: [0.6]
   mask_ratio: []
 
---scprint_training.zinb_and_mse True --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.mask_ratio []
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --scprint_training.zinb_and_mse True --scprint_training.noise [0.6] --scprint_training.do_denoise True --scprint_training.mask_ratio []"
 
 #### 21 do mvc instead of generate
 scprint_training:
   do_mvc: True
 
---scprint_training.do_mvc True
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --scprint_training.do_mvc True"
 
-##### 33 Test multi context vs fixed
+##### 22 Test multi context vs fixed
 scprint_training:
   var_context_length: True
 data:
   max_len: 3200
 
---data.max_len 3200 --scprint_training.var_context_length True
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --data.max_len 3200 --scprint_training.var_context_length True"
 
-##### 24 change gene position tolerence
+##### 23 change gene position tolerence
 data:
   gene_position_tolerance: 1000
 
---data.gene_position_tolerance 1000
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --data.gene_position_tolerance 1000"
 
-##### 25 don't do gene pos
+##### 24 don't do gene pos
 data:
   do_gene_pos: False
 
---data.do_gene_pos False
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --data.do_gene_pos False"
 
-### 29 versus only scale on cells
-data:
-  clss_to_weight:
-    - cell_type_ontology_term_id
-
---data.clss_to_weight ['cell_type_ontology_term_id']
-
-### 30 add scale on nnz
-data:
-  clss_to_weight:
-    - clust_cell_type
-    - tissue_ontology_term_id
-    - disease_ontology_term_id
-    - age_group
-    - assay_ontology_term_id
-    - self_reported_ethnicity_ontology_term_id
-    - sex_ontology_term_id
-    - organism_ontology_term_id
-    - nnz
-
-###### 34 test metacells
+###### 26 test metacells
 data:
   metacell_mode: 0.2
 
---data.metacell_mode 0.2
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --data.metacell_mode 0.2"
 
-##### 13 Test attention bias faded vs none (MAKE SURE RIGHT DIR (T))
+##### 27 Test attention bias faded vs none (MAKE SURE RIGHT DIR (T))
 model:
   attn_bias: full
 
---model.attn_bias full
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --model.attn_bias full"
 
-##### 14 no dropout
+##### 28 no dropout
 model:
   dropout: 0
 
---model.dropout 0
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --model.dropout 0"
 
-##### 15 do cell specific blocks
+##### 29 do cell specific blocks
 model:
   cell_specific_blocks: True
 
---model.cell_specific_blocks True
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --model.cell_specific_blocks True"
+2030916
+fed4mlos
 
-##### 16 learn gene embeddings
+##### 30 learn gene embeddings
 model:
   freeze_embeddings: False
 
---model.freeze_embeddings False
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --model.freeze_embeddings False"
   
-##### 17 norm sum
+##### 31 norm sum
 model:
   normalization: sum
 
---model.normlization sum
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --model.normalization sum"
 
-##### 18 no zinb vs mse vs both
+###???????
+
+##### 32 no zinb vs mse vs both
 model:
   zinb: False
 
---model.zinb False
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --model.zinb False"
 
-#### 20 do depth at input
+#### 33 do depth at input
 model:
   depth_atinput: True
 
---model.depth_atinput True
+sbatch --ntasks-per-node=1 --gres=gpu:1 --time=100:00:00 --account=xeg@h100 --nodes=1 --constraint=h100 --hint=nomultithread --signal=SIGUSR1@180 -q qos_gpu_h100-t4 --cpus-per-task=24 slurm/submit.sh "--config config/ablation_study.yml --model.depth_atinput True"
 
 34*100 = 3400 H100 GPU
 ##### Test cheap vs esm2 vs learnt
