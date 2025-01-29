@@ -290,7 +290,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 dropout=dropout,
                 nlayers=nlayers,
                 cross_attn=cell_specific_blocks,
-                attn_type=transformer,
+                use_flash_attn=(transformer == "flash"),
                 **flash_attention_kwargs,
             )
         if cell_specific_blocks:
@@ -300,7 +300,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 nlayers=6,
                 dropout=dropout,
                 cross_attn=True,
-                attn_type=transformer,
+                use_flash_attn=(transformer == "flash"),
                 **flash_attention_kwargs,
             )
         else:
