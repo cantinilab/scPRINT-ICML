@@ -95,15 +95,16 @@ class GNInfer:
         self.layer = layer
         self.locname = locname
         self.how = how
-        assert self.how in [
-            "most var within",
-            "most var across",
-            "random expr",
-            "given",
-            "most expr",
-        ], (
-            "how must be one of 'most var within', 'most var across', 'random expr', 'given', 'most expr'"
-        )
+        assert (
+            self.how
+            in [
+                "most var within",
+                "most var across",
+                "random expr",
+                "given",
+                "most expr",
+            ]
+        ), "how must be one of 'most var within', 'most var across', 'random expr', 'given', 'most expr'"
         self.num_genes = num_genes
         self.preprocess = preprocess
         self.cell_type_col = cell_type_col
@@ -419,18 +420,7 @@ class GNInfer:
 def default_benchmark(
     model: Any,
     default_dataset: str = "sroy",
-    cell_types: List[str] = [
-        "kidney distal convoluted tubule epithelial cell",
-        "kidney loop of Henle thick ascending limb epithelial cell",
-        "kidney collecting duct principal cell",
-        "mesangial cell",
-        "blood vessel smooth muscle cell",
-        "podocyte",
-        "macrophage",
-        "leukocyte",
-        "kidney interstitial fibroblast",
-        "endothelial cell",
-    ],
+    cell_types: List[str] = [],
     maxlayers: int = 16,
     maxgenes: int = 5000,
     batch_size: int = 32,
@@ -443,16 +433,6 @@ def default_benchmark(
         model (Any): The scPRINT model to be used for the benchmark.
         default_dataset (str, optional): The default dataset to use for benchmarking. Defaults to "sroy".
         cell_types (List[str], optional): List of cell types to include in the benchmark. Defaults to [
-            "kidney distal convoluted tubule epithelial cell",
-            "kidney loop of Henle thick ascending limb epithelial cell",
-            "kidney collecting duct principal cell",
-            "mesangial cell",
-            "blood vessel smooth muscle cell",
-            "podocyte",
-            "macrophage",
-            "leukocyte",
-            "kidney interstitial fibroblast",
-            "endothelial cell",
         ].
         maxlayers (int, optional): Maximum number of layers to use from the model. Defaults to 16.
         maxgenes (int, optional): Maximum number of genes to consider. Defaults to 5000.
@@ -730,6 +710,9 @@ def default_benchmark(
             grn.var.index = make_index_unique(grn.var["symbol"].astype(str))
             grn.varp["all"] = grn.varp["GRN"]
             grn.varp["GRN"] = grn.varp["GRN"].mean(-1)
+            import pdb
+
+            pdb.set_trace()
             metrics[celltype + "_scprint_mean"] = BenGRN(
                 grn, doplot=False
             ).scprint_benchmark()

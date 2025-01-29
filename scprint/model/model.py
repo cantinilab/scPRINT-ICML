@@ -47,7 +47,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         normalization: str = "sum",
         attn_bias: str = "none",
         expr_encoder_layers: int = 2,
-        transformer: str = "flash",
+        transformer: str = "flash",  # "performer", "flash", "normal", "crisscross"
         expr_emb_style: str = "continuous",  # "binned_pos", "cont_pos"
         domain_spec_batchnorm: str = "None",
         n_input_bins: int = 0,
@@ -290,7 +290,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 dropout=dropout,
                 nlayers=nlayers,
                 cross_attn=cell_specific_blocks,
-                use_flash_attn=(transformer == "flash"),
+                attn_type=transformer,
                 **flash_attention_kwargs,
             )
         if cell_specific_blocks:
@@ -300,7 +300,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 nlayers=6,
                 dropout=dropout,
                 cross_attn=True,
-                use_flash_attn=(transformer == "flash"),
+                attn_type=transformer,
                 **flash_attention_kwargs,
             )
         else:
