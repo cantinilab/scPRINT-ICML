@@ -61,7 +61,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         compress_class_dim: Optional[Dict[str, int]] = None,
         cell_emb_style: str = "cls",
         cell_specific_blocks: bool = False,
-        depth_atinput: bool = False,
+        depth_atinput: bool = True,
         freeze_embeddings: bool = True,
         zinb: bool = True,
         dropout: float = 0.1,
