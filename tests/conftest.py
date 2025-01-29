@@ -7,11 +7,10 @@ import pytest
 
 def pytest_sessionstart():
     ln_setup.init(storage="./testdb", name="test", modules="bionty")
-    print("init")
 
 
 def pytest_sessionfinish(session):
-    print("finish")
+    shutil.rmtree("./testdb")
     ln_setup.delete("test", force=True)
 
 
