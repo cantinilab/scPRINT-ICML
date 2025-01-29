@@ -12,7 +12,7 @@ keywords = ["scRNAseq", "transformer", "GRN", "gene regulatory network", "scPRIN
 dependencies = [
     "torch==2.2.0",
     "lightning>=2.0.0",
-    "lamindb[bionty]==1.0.4",
+    "lamindb[bionty,jupyter,ourprojects,cellregistry,zarr]==1.0.4",
     "matplotlib>=3.5.0",
     "seaborn>=0.11.0",
     "ipykernel>=6.20.0",
