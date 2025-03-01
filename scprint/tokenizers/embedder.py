@@ -80,7 +80,7 @@ def protein_embeddings_generator(
     else:
         raise ValueError(f"Embedder {embedder} not supported")
     # load the data and erase / zip the rest
-    utils.utils.run_command(["gzip", fasta_path + fasta_name[:-3]])
+    # utils.utils.run_command(["gzip", fasta_path + fasta_name[:-3]])
     # return the embedding and gene file
     # TODO: to redebug
     # do the same for RNA
