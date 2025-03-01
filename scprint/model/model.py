@@ -377,15 +377,26 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
             "grad_reverse_discriminator_loss.out_layer.bias"
         ].shape[0]
         # we won't use it but still need to take care of it. for now will still add it to the model
-        if size != self.grad_reverse_discriminator_loss.out_layer.bias.shape[0]:
-            self.grad_reverse_discriminator_loss = loss.AdversarialDiscriminatorLoss(
-                self.d_model,
-                n_cls=size,
-            )
-            print(
-                "the discriminator for batch effect correction has been resized\
-                and re-initiliazed. It will start from scratch during this training if "
-            )
+        if self.grad_reverse_discriminator_loss is not None:
+            if size != self.grad_reverse_discriminator_loss.out_layer.bias.shape[0]:
+                self.grad_reverse_discriminator_loss = (
+                    loss.AdversarialDiscriminatorLoss(
+                        self.d_model,
+                        n_cls=size,
+                    )
+                )
+                print(
+                    "the discriminator for batch effect correction has been resized\
+                    and re-initiliazed. It will start from scratch during this training if "
+                )
+        else:
+            if (
+                "grad_reverse_discriminator_loss.out_layer.bias"
+                in checkpoints["state_dict"]
+            ):
+                for k in list(checkpoints["state_dict"].keys()):
+                    if "grad_reverse_discriminator_loss" in k:
+                        del checkpoints["state_dict"][k]
 
         # if len(checkpoints["state_dict"]["pos_encoder.pe"].shape) == 3:
         #    self.pos_encoder.pe = checkpoints["state_dict"]["pos_encoder.pe"].squeeze(1)
