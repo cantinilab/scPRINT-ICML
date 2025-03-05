@@ -52,6 +52,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         domain_spec_batchnorm: str = "None",
         n_input_bins: int = 0,
         num_batch_labels: int = 0,
+        label_counts: Dict[str, int] = {},
         mvc_decoder: str = "None",
         pred_embedding: list[str] = [],
         layers_cls: list[int] = [],
@@ -220,11 +221,15 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 )
                 print("number of genes: ", len(embeddings))
             sembeddings = torch.nn.AdaptiveAvgPool1d(d_model)(
-                torch.tensor(embeddings.values)
+                torch.tensor(embeddings.values, dtype=torch.float32)
             )
 
-            self.gene_encoder = encoders.GeneEncoder(
-                len(self.vocab), d_model, weights=sembeddings, freeze=freeze_embeddings
+            base_encoder = encoders.GeneEncoder(
+                len(self.vocab),
+                d_model,
+                # weights_file=precpt_gene_emb,
+                weights=sembeddings,
+                freeze=freeze_embeddings,
             )
         else:
             self.gene_encoder = encoders.GeneEncoder(len(self.vocab), d_model)
@@ -402,14 +407,28 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         #    self.pos_encoder.pe = checkpoints["state_dict"]["pos_encoder.pe"].squeeze(1)
 
         self.normalization = checkpoints["hyper_parameters"].get("normalization", "sum")
-        if "classes" in checkpoints["hyper_parameters"]:
-            if self.classes != checkpoints["hyper_parameters"]["classes"]:
-                print("changing the number of classes, could lead to issues")
+        if (
+            checkpoints["state_dict"].get("gene_encoder.0.embedding.weight", None)
+            is not None
+        ):
+            # replace it with the new one gene_encoder.0.embeddings.weight in the state_dict
+            checkpoints["state_dict"]["gene_encoder.0.embeddings.weight"] = checkpoints[
+                "state_dict"
+            ]["gene_encoder.0.embedding.weight"]
+            del checkpoints["state_dict"]["gene_encoder.0.embedding.weight"]
+        if (
+            checkpoints["state_dict"].get("gene_encoder.embedding.weight", None)
+            is not None
+        ):
+            # replace it with the new one gene_encoder.embeddings.weight in the state_dict
+            checkpoints["state_dict"]["gene_encoder.embeddings.weight"] = checkpoints[
+                "state_dict"
+            ]["gene_encoder.embedding.weight"]
+            del checkpoints["state_dict"]["gene_encoder.embedding.weight"]
 
-            if "label_counts" in checkpoints["hyper_parameters"]:
-                self.label_counts = checkpoints["hyper_parameters"]["label_counts"]
-                self.classes = checkpoints["hyper_parameters"]["classes"]
-            else:
+        if "classes" in checkpoints["hyper_parameters"]:
+            if self.label_counts != checkpoints["hyper_parameters"]["classes"]:
+                print("changing the number of classes, could lead to issues")
                 self.label_counts = checkpoints["hyper_parameters"]["classes"]
                 self.classes = list(self.label_counts.keys())
             self.label_decoders = checkpoints["hyper_parameters"]["label_decoders"]
@@ -1638,17 +1657,29 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         if not os.path.exists(mdir):
             os.makedirs(mdir)
         adata, fig = utils.make_adata(
-            self.embs,
-            self.classes,
-            self.pred if not self.keep_all_cls_pred else None,
-            self.attn.get(),
-            self.global_step,
-            self.label_decoders,
-            self.labels_hierarchy,
-            gtclass,
-            self.name + "_" + name + "_" + str(self.global_rank),
-            mdir,
-            self.doplot,
+            pos=self.pos,
+            expr_pred=self.expr_pred,
+            genes=self.genes,
+            embs=self.embs,
+            classes=self.classes,
+            pred=self.pred,
+            attention=self.attn.get(),
+            label_decoders=self.label_decoders,
+            labels_hierarchy=self.labels_hierarchy,
+            gtclass=gtclass,
+            doplot=self.doplot,
+        )
+        adata.write(
+            mdir
+            + "/step_"
+            + str(self.global_step)
+            + "_"
+            + self.name
+            + "_"
+            + name
+            + "_"
+            + str(self.global_rank)
+            + ".h5ad"
         )
         if self.doplot:
             try:
