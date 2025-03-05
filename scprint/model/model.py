@@ -52,6 +52,7 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         domain_spec_batchnorm: str = "None",
         n_input_bins: int = 0,
         num_batch_labels: int = 0,
+        label_counts: Dict[str, int] = {},
         mvc_decoder: str = "None",
         pred_embedding: list[str] = [],
         layers_cls: list[int] = [],
@@ -220,11 +221,15 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
                 )
                 print("number of genes: ", len(embeddings))
             sembeddings = torch.nn.AdaptiveAvgPool1d(d_model)(
-                torch.tensor(embeddings.values)
+                torch.tensor(embeddings.values, dtype=torch.float32)
             )
 
-            self.gene_encoder = encoders.GeneEncoder(
-                len(self.vocab), d_model, weights=sembeddings, freeze=freeze_embeddings
+            base_encoder = encoders.GeneEncoder(
+                len(self.vocab),
+                d_model,
+                # weights_file=precpt_gene_emb,
+                weights=sembeddings,
+                freeze=freeze_embeddings,
             )
         else:
             self.gene_encoder = encoders.GeneEncoder(len(self.vocab), d_model)
@@ -402,14 +407,28 @@ class scPrint(L.LightningModule, PyTorchModelHubMixin):
         #    self.pos_encoder.pe = checkpoints["state_dict"]["pos_encoder.pe"].squeeze(1)
 
         self.normalization = checkpoints["hyper_parameters"].get("normalization", "sum")
-        if "classes" in checkpoints["hyper_parameters"]:
-            if self.classes != checkpoints["hyper_parameters"]["classes"]:
-                print("changing the number of classes, could lead to issues")
+        if (
+            checkpoints["state_dict"].get("gene_encoder.0.embedding.weight", None)
+            is not None
+        ):
+            # replace it with the new one gene_encoder.0.embeddings.weight in the state_dict
+            checkpoints["state_dict"]["gene_encoder.0.embeddings.weight"] = checkpoints[
+                "state_dict"
+            ]["gene_encoder.0.embedding.weight"]
+            del checkpoints["state_dict"]["gene_encoder.0.embedding.weight"]
+        if (
+            checkpoints["state_dict"].get("gene_encoder.embedding.weight", None)
+            is not None
+        ):
+            # replace it with the new one gene_encoder.embeddings.weight in the state_dict
+            checkpoints["state_dict"]["gene_encoder.embeddings.weight"] = checkpoints[
+                "state_dict"
+            ]["gene_encoder.embedding.weight"]
+            del checkpoints["state_dict"]["gene_encoder.embedding.weight"]
 
-            if "label_counts" in checkpoints["hyper_parameters"]:
-                self.label_counts = checkpoints["hyper_parameters"]["label_counts"]
-                self.classes = checkpoints["hyper_parameters"]["classes"]
-            else:
+        if "classes" in checkpoints["hyper_parameters"]:
+            if self.label_counts != checkpoints["hyper_parameters"]["classes"]:
+                print("changing the number of classes, could lead to issues")
                 self.label_counts = checkpoints["hyper_parameters"]["classes"]
                 self.classes = list(self.label_counts.keys())
             self.label_decoders = checkpoints["hyper_parameters"]["label_decoders"]

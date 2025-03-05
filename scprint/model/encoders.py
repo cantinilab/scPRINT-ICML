@@ -31,7 +31,7 @@ class GeneEncoder(nn.Module):
         Note: not used in the current version of scprint.
         """
         super(GeneEncoder, self).__init__()
-        self.embedding = nn.Embedding(
+        self.embeddings = nn.Embedding(
             num_embeddings, embedding_dim, padding_idx=padding_idx, _freeze=freeze
         )
 
@@ -41,10 +41,10 @@ class GeneEncoder(nn.Module):
             # weights = torch.cat(
             #    [torch.Tensor(weights), torch.zeros(1, embedding_dim)], dim=0
             # )
-            self.embedding.weight.data.copy_(torch.Tensor(weights))
+            self.embeddings.weight.data.copy_(torch.Tensor(weights))
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.embedding(x)  # (batch, seq_len, embsize)
+        return self.embeddings(x)  # (batch, seq_len, embsize)
 
 
 class PositionalEncoding(nn.Module):
