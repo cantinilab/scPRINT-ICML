@@ -8,7 +8,7 @@ import scanpy as sc
 import sklearn.metrics
 import torch
 from anndata import AnnData
-from scdataloader import Collator, Preprocessor
+from scdataloader import Collator
 from scdataloader.data import SimpleAnnDataset
 from scipy.sparse import issparse
 from scipy.stats import spearmanr
@@ -266,6 +266,8 @@ def open_benchmark(model):
         FILE_DIR + "/../../data/pancreas_atlas.h5ad",
         backup_url="https://figshare.com/ndownloader/files/24539828",
     )
+    from scdataloader import Preprocessor
+
     adata = adata[adata.obs.tech == "inDrop1"]
 
     train, test = split_molecules(adata.layers["counts"].round().astype(int), 0.9)
