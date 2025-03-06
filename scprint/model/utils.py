@@ -127,7 +127,7 @@ def make_adata(
             if gtclass is not None:
                 tr = translate(adata.obs[clss].tolist(), clss)
                 if tr is not None:
-                adata.obs["conv_" + clss] = adata.obs[clss].replace(tr)
+                    adata.obs["conv_" + clss] = adata.obs[clss].replace(tr)
             tr = translate(adata.obs["pred_" + clss].tolist(), clss)
             if tr is not None:
                 adata.obs["conv_pred_" + clss] = adata.obs["pred_" + clss].replace(tr)
@@ -149,7 +149,9 @@ def make_adata(
                         if true in cur_labels_hierarchy:
                             res.append(pred in cur_labels_hierarchy[true])
                         elif true not in class_topred:
-                            raise ValueError(f"true label {true} not in available classes")
+                            raise ValueError(
+                                f"true label {true} not in available classes"
+                            )
                         elif true != "unknown":
                             res.append(False)
                     elif true not in class_topred:
