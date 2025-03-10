@@ -139,7 +139,7 @@ class Denoiser:
                     depth,
                     predict_mode="denoise",
                     depth_mult=self.predict_depth_mult,
-                    size_in_mem=self.save_every,
+                    max_size_in_mem=self.save_every,
                 )
         torch.cuda.empty_cache()
         model.log_adata(name="predict_part_" + str(model.counter))

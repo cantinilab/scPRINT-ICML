@@ -148,7 +148,7 @@ class Embedder:
                     predict_mode="none",
                     pred_embedding=self.pred_embedding,
                     get_gene_emb=self.get_gene_emb,
-                    size_in_mem=self.save_every,
+                    max_size_in_mem=self.save_every,
                 )
                 torch.cuda.empty_cache()
         model.log_adata(name="predict_part_" + str(model.counter))
