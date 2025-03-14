@@ -69,7 +69,7 @@ dev = [
     "mkdocs-jupyter>=0.2.0",
     "mkdocstrings-python>=0.10.0",
     "datasets>=3.0.1",
-    "gseapy>=1.0.0",
+    "gseapy==1.1.2",
     "datamapplot>=0.4.2",
     "celltypist>=0.1.1",
     "louvain>=0.8.2",
